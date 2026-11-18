@@ -1,0 +1,29 @@
+/* ===== ARCHIPHASE — direction artistique du logo : bleu nuit (Archi) → bleu canard → vert (phases) → ambre (jalons, aujourd'hui) =====
+   Se superpose à la charte Studio Prism commune aux apps Archi (app.css, auth.css, home.css). Thème clair par défaut, thème sombre au choix. */
+:root{
+  --nuit:#0D1E45; --prism:#145E8C; --cyan:#17A2B2; --turq:#139AA6; --vert:#22B488; --lime:#7CC444; --ambre:#E9B52F; --orange:#F28C28;
+  --accent:#0E7F96; --accent-2:#22B488; --accent-soft:#E3F3F5; --sel:#F28C28; --ok:#1E8E5A; --warn:#B7791F; --danger:#C62828;
+  --bg:#F3F6FA; --line:#DCE4EE; --chip:#EEF3F7;
+  --grad:linear-gradient(120deg,#0D1E45 0%,#145E8C 40%,#139AA6 65%,#22B488 85%,#7CC444 100%);
+  --grad-t:linear-gradient(90deg,#145E8C,#139AA6 55%,#22B488);
+  --logo:url("assets/logo-wide.webp");
+}
+:root[data-theme="dark"]{
+  --bg:#0F131B; --panel:#171C26; --ink:#E8ECF2; --mut:#9EA8B8; --line:#273041; --chip:#202837;
+  --accent:#3FC1D0; --accent-2:#46D3A4; --accent-soft:#16303A; --sel:#FFA53A; --vp:#121722; --edge:#0B0E14;
+}
+.brand b .plan{background:var(--grad-t);-webkit-background-clip:text;background-clip:text;color:transparent}
+.brand b{color:#0D1E45}
+:root[data-theme="dark"] .brand b{color:#D6E6F5}
+:root[data-theme="dark"] .brand b .plan{background:linear-gradient(90deg,#4FC3D8,#5BE0B0);-webkit-background-clip:text;background-clip:text}
+.brand-mark{background:#FFFFFF;border-color:var(--line)}
+.brand-mark img{width:32px;height:auto}
+:root[data-theme="dark"] .brand-mark{background:#F4F7FB}
+/* compte : logo complet ARCHIPHASE */
+.ap-logo{aspect-ratio:1200/346;background:var(--logo) 0 0/100% 100% no-repeat}
+@media (min-resolution:1.5dppx){.ap-logo{background-image:url("assets/logo-wide@2x.webp")}}
+.ap-side{background-color:#FAFBFC}
+.ap-apps em{color:#0B6B60;border-color:#9FDCCB}
+.ap-steps li.cur i{border-color:var(--vert);background:var(--vert)}
+.ap-btn{background:#0D1E45;border-color:#0D1E45}.ap-btn:hover{background:#16346E}
+.modes button[aria-pressed="true"]{background:var(--accent);color:#fff}
