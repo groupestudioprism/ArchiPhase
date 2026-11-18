@@ -3,7 +3,7 @@
 Planification et phasage de projets : diagramme de Gantt, ressources, réseau PERT, chemin critique, planning de référence.
 Une app du pôle **Prism App** de Studio Prism, dans la gamme **Archi** (ARCHIPLAN, ARCHITRAFIC, Archi Vision). Reprend l'esprit de GanttProject, en plus moderne, sur téléphone, tablette et ordinateur.
 
-**En ligne :** https://groupestudioprism.github.io/ArchiPhase/
+**En ligne :** https://archiphase.studio-prism.com/
 
 ## Fonctions
 - **Gantt** : tâches, sous-tâches (phases), jalons ; glisser une barre pour la déplacer, son bord droit pour la durée, le triangle pour l'avancement, le rond pour lier à une autre tâche.
