@@ -1380,7 +1380,7 @@ a.ap-link{text-decoration:none}
   <button data-act="catchup"><b>Rattraper les retards</b><span>Replanifie à partir d'aujourd'hui ce qui n'a pas été fait (annulable)</span></button>
   <button data-act="help"><b>Raccourcis et aide</b><span>Clavier, souris, glisser-déposer</span></button>
 </div>
-<div class="menu" id="exportMenu" hidden><div class="lbl">Exporter <span class="lock" hidden>· licence requise</span></div>
+<div class="menu" id="exportMenu" hidden><div class="lbl">Exporter <span class="lock" hidden>· licence requise (sauf GanttProject)</span></div>
   <button data-act="gan"><b>GanttProject (.gan)</b><span>Tâches, liens, ressources, affectations : s'ouvre dans GanttProject</span></button>
   <button data-act="msp"><b>MS Project (.xml)</b><span>Format d'échange Microsoft Project, Primavera, ProjectLibre</span></button>
   <button data-act="csv"><b>Tableau des tâches (.csv)</b><span>Pour Excel, SPECTRA Calc, LibreOffice</span></button>
@@ -2778,7 +2778,7 @@ function renderOffer(){
   const el = $a('#homeOffer'); if (!el) return;
   const hide = planKey() !== 'free' || access.level === 'pending' || !me || store.get('aph.offerHide.' + me.uid);
   el.hidden = !!hide; if (hide) return;
-  el.innerHTML = `<div class="ho-in"><div><b>Offre gratuite</b><span>Tous les outils, 10 Mo de cloud, 5 dossiers et 3 dossiers partagés. Les exports (GanttProject, MS Project, images, PDF) demandent une licence ARCHIPHASE.</span></div>
+  el.innerHTML = `<div class="ho-in"><div><b>Offre gratuite</b><span>Tous les outils, 10 Mo de cloud, 5 dossiers et 3 dossiers partagés. Imports et export GanttProject (.gan) libres ; les autres exports (MS Project, images, PDF) demandent une licence ARCHIPHASE.</span></div>
     <div class="ho-a"><a class="ho-b" href="${OFFERS_URL}" target="_blank" rel="noopener">Voir les offres</a><button type="button" class="ho-b" data-hact="key">J'ai une clé de licence</button><button type="button" class="ho-x" data-hact="offer-hide" aria-label="Masquer">✕</button></div></div>`;
 }
 function renderHome(){
@@ -3333,7 +3333,8 @@ async function downloadBlob(blob, name){
 }
 const safeName = s => String(s || 'projet').normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9]+/gi, '-').replace(/^-|-$/g, '').toLowerCase() || 'projet';
 /* droits d'export : licence ARCHIPHASE (ou offre gratuite pour tous tant que l'app est en test) */
-function canExport(){ const a = window.SPAccess; if (a && a.level !== 'pending' && !a.canExport){ window.SPLicense?.prompt('export'); return false; } window.SPLicense?.usage?.(); return true; }
+function canExport(kind){ if (kind === 'gan') return true;   // GanttProject : export libre pour tous (interopérabilité)
+  const a = window.SPAccess; if (a && a.level !== 'pending' && !a.canExport){ window.SPLicense?.prompt('export'); return false; } window.SPLicense?.usage?.(); return true; }
 /* fenêtre de l'app (même style que les autres apps Archi) */
 function engDlg(html, cls = ''){
   const d = $('#engDlg'); d.className = cls; d.querySelector('.edlg-card').innerHTML = html; d.hidden = false;
@@ -3355,7 +3356,7 @@ document.addEventListener('pointerdown', e => { $$('.menu').forEach(m => { if (!
    Toutes les dates du planning sont des « jours » entiers (nombre de jours depuis le 1er janvier 1970, UTC : aucun décalage d'heure d'été).
    Les calculs d'ordonnancement se font en « jours ouvrés » : un index qui ne compte que les jours travaillés. */
 const DAY = 864e5;
-const isoToDay = s => { const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(String(s || '')); return m ? Math.floor(Date.UTC(+m[1], +m[2] - 1, +m[3]) / DAY) : NaN; };
+const isoToDay = s => { const m = /^(\d{4})-(\d{1,2})-(\d{1,2})/.exec(String(s || '')); return m ? Math.floor(Date.UTC(+m[1], +m[2] - 1, +m[3]) / DAY) : NaN; };
 const dayToIso = d => new Date(d * DAY).toISOString().slice(0, 10);
 const dayDate = d => new Date(d * DAY);
 const todayDay = () => { const n = new Date(); return Math.floor(Date.UTC(n.getFullYear(), n.getMonth(), n.getDate()) / DAY); };
@@ -4297,7 +4298,7 @@ function toIcs(){
   return ['BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//Studio Prism//ARCHIPHASE//FR', 'CALSCALE:GREGORIAN', `X-WR-CALNAME:${fold(state.name)}`, ...ev, 'END:VCALENDAR'].join('\r\n');
 }
 async function doExport(k){
-  if (!canExport()) return;
+  if (!canExport(k)) return;
   try {
     if (k === 'gan') await downloadBlob(new Blob([toGan()], {type:'application/xml'}), fname('gan'));
     else if (k === 'msp') await downloadBlob(new Blob([toMsp()], {type:'application/xml'}), fname('xml'));
@@ -4455,6 +4456,13 @@ function bindTools(){
     e.preventDefault(); openPalette();
   });
   $$('[data-pal]').forEach(b => b.addEventListener('click', openPalette));
+  /* glisser-déposer d'un planning (.gan, .xml, .csv, .json) sur la page : même import que « Importer un planning » */
+  const ok = e => !$('#app').hidden && $('#auth').hidden && $('#home').hidden && [...(e.dataTransfer?.types || [])].includes('Files');
+  addEventListener('dragover', e => { if (ok(e)) e.preventDefault(); });
+  addEventListener('drop', e => { if (!ok(e)) return; e.preventDefault(); const f = e.dataTransfer.files[0]; if (!f) return;
+    if (state.view.ro) return toast('Ce projet vous est partagé en lecture seule.');
+    if (!/\.(gan|xml|csv|json)$/i.test(f.name)) return toast('Format non pris en charge : déposez un fichier .gan (GanttProject), .xml (MS Project), .csv ou .json.');
+    const dt = new DataTransfer(); dt.items.add(f); const inp = $('#fileIn'); inp.files = dt.files; inp.dispatchEvent(new Event('change', {bubbles:true})); });
 }
 
 /* ==== 80-main.js ==== */

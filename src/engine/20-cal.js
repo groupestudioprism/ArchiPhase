@@ -2,7 +2,7 @@
    Toutes les dates du planning sont des « jours » entiers (nombre de jours depuis le 1er janvier 1970, UTC : aucun décalage d'heure d'été).
    Les calculs d'ordonnancement se font en « jours ouvrés » : un index qui ne compte que les jours travaillés. */
 const DAY = 864e5;
-const isoToDay = s => { const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(String(s || '')); return m ? Math.floor(Date.UTC(+m[1], +m[2] - 1, +m[3]) / DAY) : NaN; };
+const isoToDay = s => { const m = /^(\d{4})-(\d{1,2})-(\d{1,2})/.exec(String(s || '')); return m ? Math.floor(Date.UTC(+m[1], +m[2] - 1, +m[3]) / DAY) : NaN; };
 const dayToIso = d => new Date(d * DAY).toISOString().slice(0, 10);
 const dayDate = d => new Date(d * DAY);
 const todayDay = () => { const n = new Date(); return Math.floor(Date.UTC(n.getFullYear(), n.getMonth(), n.getDate()) / DAY); };

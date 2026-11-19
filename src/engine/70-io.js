@@ -212,7 +212,7 @@ function toIcs(){
   return ['BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//Studio Prism//ARCHIPHASE//FR', 'CALSCALE:GREGORIAN', `X-WR-CALNAME:${fold(state.name)}`, ...ev, 'END:VCALENDAR'].join('\r\n');
 }
 async function doExport(k){
-  if (!canExport()) return;
+  if (!canExport(k)) return;
   try {
     if (k === 'gan') await downloadBlob(new Blob([toGan()], {type:'application/xml'}), fname('gan'));
     else if (k === 'msp') await downloadBlob(new Blob([toMsp()], {type:'application/xml'}), fname('xml'));

@@ -128,4 +128,11 @@ function bindTools(){
     e.preventDefault(); openPalette();
   });
   $$('[data-pal]').forEach(b => b.addEventListener('click', openPalette));
+  /* glisser-déposer d'un planning (.gan, .xml, .csv, .json) sur la page : même import que « Importer un planning » */
+  const ok = e => !$('#app').hidden && $('#auth').hidden && $('#home').hidden && [...(e.dataTransfer?.types || [])].includes('Files');
+  addEventListener('dragover', e => { if (ok(e)) e.preventDefault(); });
+  addEventListener('drop', e => { if (!ok(e)) return; e.preventDefault(); const f = e.dataTransfer.files[0]; if (!f) return;
+    if (state.view.ro) return toast('Ce projet vous est partagé en lecture seule.');
+    if (!/\.(gan|xml|csv|json)$/i.test(f.name)) return toast('Format non pris en charge : déposez un fichier .gan (GanttProject), .xml (MS Project), .csv ou .json.');
+    const dt = new DataTransfer(); dt.items.add(f); const inp = $('#fileIn'); inp.files = dt.files; inp.dispatchEvent(new Event('change', {bubbles:true})); });
 }

@@ -401,7 +401,7 @@ function renderOffer(){
   const el = $a('#homeOffer'); if (!el) return;
   const hide = planKey() !== 'free' || access.level === 'pending' || !me || store.get('aph.offerHide.' + me.uid);
   el.hidden = !!hide; if (hide) return;
-  el.innerHTML = `<div class="ho-in"><div><b>Offre gratuite</b><span>Tous les outils, 10 Mo de cloud, 5 dossiers et 3 dossiers partagés. Les exports (GanttProject, MS Project, images, PDF) demandent une licence ARCHIPHASE.</span></div>
+  el.innerHTML = `<div class="ho-in"><div><b>Offre gratuite</b><span>Tous les outils, 10 Mo de cloud, 5 dossiers et 3 dossiers partagés. Imports et export GanttProject (.gan) libres ; les autres exports (MS Project, images, PDF) demandent une licence ARCHIPHASE.</span></div>
     <div class="ho-a"><a class="ho-b" href="${OFFERS_URL}" target="_blank" rel="noopener">Voir les offres</a><button type="button" class="ho-b" data-hact="key">J'ai une clé de licence</button><button type="button" class="ho-x" data-hact="offer-hide" aria-label="Masquer">✕</button></div></div>`;
 }
 function renderHome(){

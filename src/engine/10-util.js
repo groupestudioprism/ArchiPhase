@@ -42,7 +42,8 @@ async function downloadBlob(blob, name){
 }
 const safeName = s => String(s || 'projet').normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9]+/gi, '-').replace(/^-|-$/g, '').toLowerCase() || 'projet';
 /* droits d'export : licence ARCHIPHASE (ou offre gratuite pour tous tant que l'app est en test) */
-function canExport(){ const a = window.SPAccess; if (a && a.level !== 'pending' && !a.canExport){ window.SPLicense?.prompt('export'); return false; } window.SPLicense?.usage?.(); return true; }
+function canExport(kind){ if (kind === 'gan') return true;   // GanttProject : export libre pour tous (interopérabilité)
+  const a = window.SPAccess; if (a && a.level !== 'pending' && !a.canExport){ window.SPLicense?.prompt('export'); return false; } window.SPLicense?.usage?.(); return true; }
 /* fenêtre de l'app (même style que les autres apps Archi) */
 function engDlg(html, cls = ''){
   const d = $('#engDlg'); d.className = cls; d.querySelector('.edlg-card').innerHTML = html; d.hidden = false;
