@@ -104,7 +104,7 @@
 <div class="menu" id="fileMenu" hidden>
   <button data-act="home"><b>Accueil</b><span>Mes projets et dossiers dans le cloud</span></button>
   <button data-act="new"><b>Nouveau projet</b><span>Enregistré automatiquement dans le cloud</span></button>
-  <button data-act="open"><b>Importer un planning…</b><span>GanttProject (.gan), MS Project (.xml), tableur (.csv), ARCHIPHASE (.json) — remplace le planning ouvert</span></button>
+  <button data-act="open"><b>Importer un planning…</b><span>Excel (.xlsx, colonnes détectées seules), GanttProject (.gan), MS Project (.xml), .csv, ARCHIPHASE (.json) — remplace le planning ouvert</span></button>
   <button data-act="tpl"><b>Partir d'un modèle…</b><span>Réseaux EU / EP, voirie et VRD, bâtiment, projet BIM, logiciel</span></button>
   <hr>
   <button data-act="baseline"><b>Enregistrer la référence</b><span>Fige le planning actuel pour comparer les écarts plus tard</span></button>
@@ -162,7 +162,7 @@
     <footer class="h-foot">Studio Prism · Creative &amp; Technical Solutions · ARCHIPHASE · Jours fériés français calculés automatiquement</footer>
   </div>
   <div class="h-busy" id="homeBusy" hidden><div class="ap-spin" aria-hidden="true"></div><span></span></div>
-  <input type="file" id="homeFile" accept=".json,.gan,.xml,.csv,application/json,text/xml,text/csv" hidden>
+  <input type="file" id="homeFile" accept=".json,.gan,.xml,.csv,.xlsx,.xlsm,.xls,application/json,text/xml,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" hidden>
 </section>
 <div class="menu" id="ctxMenu" hidden></div>
 <div class="menu" id="homeMenu" hidden></div>
@@ -170,4 +170,4 @@
 <div id="engDlg" hidden role="dialog" aria-modal="true"><div class="edlg-card"></div></div>
 <div id="toast" hidden></div>
 <div class="gtip" id="gtip" hidden></div>
-<input type="file" id="fileIn" accept=".json,.gan,.xml,.csv,application/json,text/xml,text/csv" hidden>
+<input type="file" id="fileIn" accept=".json,.gan,.xml,.csv,.xlsx,.xlsm,.xls,application/json,text/xml,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" hidden>

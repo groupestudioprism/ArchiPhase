@@ -78,9 +78,9 @@ function bindUI(){
     ({home:() => $('#homeBtn').click(), new:() => window.APHome ? window.APHome.newProject() : window.APModel.load(blankState()), open:() => $('#fileIn').click(), tpl:tplDialog, baseline:setBaseline, baseclear:clearBaseline,
       sample:() => { if (window.APCloudActive && !confirm('Remplacer le planning ouvert par l\'exemple ? (annulable avec Ctrl+Z)')) return; edit(() => { const nm = state.name; state = sample(); if (window.APCloudActive){ state.name = nm; state.isSample = false; } }); requestAnimationFrame(() => scrollToDay(todayDay() - 10)); }, help:helpDialog, level:levelResources, catchup:catchUp, palette:openPalette})[k]?.(); });
   $('#exportMenu').addEventListener('click', e => { const b = e.target.closest('[data-act]'); if (!b) return; $('#exportMenu').hidden = true; doExport(b.dataset.act); });
-  $('#fileIn').addEventListener('change', e => { const f = e.target.files[0]; e.target.value = ''; if (!f) return; const r = new FileReader();
-    r.onload = () => { try { const s = parseFile(f.name, r.result); const nm = state.name; edit(() => { state = s; if (window.APCloudActive) state.name = nm; }); sel.clear(); renderPanel(); toast(`${s.els.length} tâches importées depuis ${f.name}.`); requestAnimationFrame(() => fitAll()); } catch(x){ toast('Import impossible : ' + (x.message || x), 6000); } };
-    r.readAsText(f); });
+  $('#fileIn').addEventListener('change', e => { const f = e.target.files[0]; e.target.value = ''; if (!f) return; const r = new FileReader(), xl = /\.(xlsx|xlsm|xls)$/i.test(f.name);
+    r.onload = async () => { try { const s = xl ? fromWorkbook(await readXlsx(r.result), f.name.replace(/\.[^.]+$/, '')) : parseFile(f.name, r.result), info = s.importInfo; delete s.importInfo; const nm = state.name; edit(() => { state = s; if (window.APCloudActive) state.name = nm; }); sel.clear(); renderPanel(); toast(`${s.els.length} tâches importées depuis ${f.name}${info ? ' · repéré : ' + info : ''}.`, info ? 7000 : 3200); requestAnimationFrame(() => fitAll()); } catch(x){ toast('Import impossible : ' + (x.message || x), 7000); } };
+    xl ? r.readAsArrayBuffer(f) : r.readAsText(f); });
   $('#panelBtn').addEventListener('click', () => openPanel(!$('#panel').classList.contains('open')));
   $('#scrim').addEventListener('click', () => openPanel(false));
   $('.sheethead').addEventListener('click', () => openPanel(false));
@@ -127,6 +127,7 @@ window.APModel = { info:projInfo,
   name:() => state.name,
   sample:() => sample(),
   parseFile:(name, text) => JSON.parse(JSON.stringify(parseFile(name, text))),
+  parseXlsx:async (name, buf) => { const s = fromWorkbook(await readXlsx(buf), String(name).replace(/\.[^.]+$/, '')); delete s.importInfo; return JSON.parse(JSON.stringify(s)); },
   load(s){
     quiet = true;
     try { state = migrate(s); hist.length = 0; redoS.length = 0; sel = new Set(); selLink = null; focusId = null; $('#zoomSel').value = state.view.zoom;

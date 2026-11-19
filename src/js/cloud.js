@@ -662,13 +662,13 @@ $a('#homeNewF').addEventListener('click', () => {
 $a('#homeImport').addEventListener('click', () => $a('#homeFile').click());
 $a('#homeSample').addEventListener('click', async () => { try { await openInModel(window.APModel?.sample() || {els:[]}, null, ''); $a('#projName').textContent = 'Exemple · non enregistré'; } catch(x){ toastA('Le planning n\'est pas encore chargé. Réessayez.'); } });
 $a('#homeFile').addEventListener('change', e => {
-  const f = e.target.files[0]; if (!f) return; const rd = new FileReader();
+  const f = e.target.files[0]; if (!f) return; const rd = new FileReader(), xl = /\.(xlsx|xlsm|xls)$/i.test(f.name);
   rd.onload = async () => { e.target.value = ''; try {
     // .json ARCHIPHASE, ou fichier d'un autre logiciel de planning (GanttProject .gan, MS Project .xml, tableur .csv) converti par le moteur
-    let s; try { s = JSON.parse(rd.result); } catch(x){ await withTimeout(modelReady, 20000, 'app/engine'); s = window.APModel.parseFile(f.name, rd.result); }
+    let s; if (xl){ await withTimeout(modelReady, 20000, 'app/engine'); s = await window.APModel.parseXlsx(f.name, rd.result); } else try { s = JSON.parse(rd.result); } catch(x){ await withTimeout(modelReady, 20000, 'app/engine'); s = window.APModel.parseFile(f.name, rd.result); }
     if (!s || !Array.isArray(s.els)) throw 0;
-    await newProject(s.name || f.name.replace(/\.(archiphase\.)?(json|gan|xml|csv)$/i, ''), JSON.stringify(s)); } catch(x){ toastA('Ce fichier n\'est pas un planning lisible (ARCHIPHASE .json, GanttProject .gan, MS Project .xml ou .csv).'); } };
-  rd.readAsText(f);
+    await newProject(s.name || f.name.replace(/\.(archiphase\.)?(json|gan|xml|csv|xlsx|xlsm|xls)$/i, ''), JSON.stringify(s)); } catch(x){ toastA(x?.message && x !== 0 ? 'Import impossible : ' + x.message : 'Ce fichier n\'est pas un planning lisible (Excel .xlsx, ARCHIPHASE .json, GanttProject .gan, MS Project .xml ou .csv).'); } };
+  xl ? rd.readAsArrayBuffer(f) : rd.readAsText(f);
 });
 $a('#homeLic').addEventListener('click', () => show('licence'));
 $a('#homeQuota').addEventListener('click', e => { if (e.target.closest('[data-hact="upgrade"]')) show('licence'); });

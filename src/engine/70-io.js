@@ -140,13 +140,13 @@ function fromCsv(txt, name){
   return migrate(st);
 }
 function parseFile(name, text){
-  const n = String(name || '').toLowerCase(), base = String(name || 'Planning importé').replace(/\.(gan|xml|csv|json|mpp)$/i, '');
+  const n = String(name || '').toLowerCase(), base = String(name || 'Planning importé').replace(/\.(gan|xml|csv|json|mpp|xlsx|xlsm|xls)$/i, '');
   if (/\.mpp$/.test(n)) throw new Error('le format .mpp de Microsoft Project est fermé : enregistrez le projet en XML depuis MS Project (Fichier → Enregistrer sous → XML)');
   const t = String(text || '').trim();
   if (t.startsWith('{')) { const s = JSON.parse(t); return migrate(s); }
   if (/\.gan$/.test(n) || /<project[\s>][\s\S]*<tasks/i.test(t.slice(0, 4000)) && !/schemas\.microsoft\.com\/project/.test(t.slice(0, 600))) return fromGan(t, base);
   if (/\.xml$/.test(n) || /schemas\.microsoft\.com\/project/.test(t.slice(0, 600))) return fromMsp(t, base);
-  return fromCsv(t, base);
+  try { return smartTable(parseCsvText(t), base); } catch(e){ try { return fromCsv(t, base); } catch(x){ throw e; } }
 }
 /* ---------- vue vectorielle du planning (image et impression) ---------- */
 function ganttSVG(opt = {}){

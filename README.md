@@ -18,7 +18,7 @@ Une app du pôle **Prism App** de Studio Prism, dans la gamme **Archi** (ARCHIPL
 - **Chemin critique** et marges totales, **planning de référence** et écarts, tâches en retard sur l'avancement attendu.
 - **Ressources** : équipes, personnes, engins, sous-traitants ; affectation en %, coût par jour, capacité, vue de charge avec surcharges.
 - **PERT** : réseau des tâches avec dates au plus tôt et au plus tard.
-- **Imports** : GanttProject (.gan), MS Project (.xml), tableur (.csv), ARCHIPHASE (.json).
+- **Imports** : GanttProject (.gan), MS Project (.xml), **Excel (.xlsx) et CSV avec détection automatique** (en-têtes repérés même décalés ou absents, colonnes déduites du contenu : noms, dates, durées, %, prédécesseurs, hiérarchie par numérotation/indentation/niveau/sections ; .xls ancien → l'enregistrer en .xlsx), ARCHIPHASE (.json).
 - **Export GanttProject (.gan) libre pour tous** ; glisser-déposer d'un fichier .gan / .xml / .csv / .json sur la page pour l'importer.
 - **Exports** (licence) : MS Project (.xml), CSV, image PNG HD, impression / PDF A3, jalons dans l'agenda (.ics), sauvegarde .json.
 - **Modèles** : réseaux EU / EP et voirie, conduite AEP, maison individuelle, projet BIM, projet logiciel.

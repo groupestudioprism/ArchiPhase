@@ -133,6 +133,6 @@ function bindTools(){
   addEventListener('dragover', e => { if (ok(e)) e.preventDefault(); });
   addEventListener('drop', e => { if (!ok(e)) return; e.preventDefault(); const f = e.dataTransfer.files[0]; if (!f) return;
     if (state.view.ro) return toast('Ce projet vous est partagé en lecture seule.');
-    if (!/\.(gan|xml|csv|json)$/i.test(f.name)) return toast('Format non pris en charge : déposez un fichier .gan (GanttProject), .xml (MS Project), .csv ou .json.');
+    if (!/\.(gan|xml|csv|json|xlsx|xlsm|xls)$/i.test(f.name)) return toast('Format non pris en charge : déposez un fichier Excel (.xlsx), .gan (GanttProject), .xml (MS Project), .csv ou .json.');
     const dt = new DataTransfer(); dt.items.add(f); const inp = $('#fileIn'); inp.files = dt.files; inp.dispatchEvent(new Event('change', {bubbles:true})); });
 }
