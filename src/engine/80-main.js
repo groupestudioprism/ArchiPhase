@@ -62,7 +62,7 @@ function helpDialog(){
   engDlg(`<div class="ed-h"><h3>Raccourcis et aide</h3><button class="ib ghost" data-x aria-label="Fermer">✕</button></div><div class="help">
     <h4>Souris et doigt</h4><ul><li><b>Glisser une barre</b> : déplacer la tâche (les tâches liées suivent).</li><li><b>Bord droit d'une barre</b> : changer la durée.</li><li><b>Petit triangle sous la barre</b> : avancement.</li><li><b>Rond au bout d'une barre</b> : tirer vers une autre tâche pour les lier (fin → début).</li><li><b>Clic sur une flèche</b> : modifier le type de lien ou le décalage.</li><li><b>Double-clic</b> sur une cellule : la modifier ; sur une barre : ouvrir la fiche.</li><li><b>Clic droit / appui long</b> : menu de la tâche.</li></ul>
     <h4>Clavier</h4><ul class="kb"><li><kbd>Inser</kbd> nouvelle tâche</li><li><kbd>Maj</kbd>+<kbd>Inser</kbd> sous-tâche</li><li><kbd>J</kbd> jalon</li><li><kbd>Tab</kbd> / <kbd>Maj</kbd>+<kbd>Tab</kbd> niveau</li><li><kbd>Alt</kbd>+<kbd>↑</kbd><kbd>↓</kbd> déplacer</li><li><kbd>↑</kbd><kbd>↓</kbd> sélection</li><li><kbd>F2</kbd> renommer</li><li><kbd>L</kbd> lier</li><li><kbd>Suppr</kbd> supprimer</li><li><kbd>Ctrl</kbd>+<kbd>Z</kbd> / <kbd>Y</kbd> annuler / rétablir</li><li><kbd>Ctrl</kbd>+<kbd>D</kbd> dupliquer</li><li><kbd>T</kbd> aujourd'hui</li></ul>
-    <h4>Liens</h4><p>FD : fin → début (le plus courant) · DD : début → début · FF : fin → fin · DF : début → fin. Un décalage négatif permet un chevauchement (ex. FD −2 : la tâche démarre 2 jours avant la fin de la précédente).</p>
+    <h4>Palette de commandes</h4><p>Ctrl+K (ou la loupe) : cherchez une tâche pour la retrouver, lancez une action, ou tapez « Pose bordures 2 sem » pour créer une tâche avec sa durée (j, sem, mois, an). Menu Fichier : « Niveler les ressources » résout les surcharges, « Rattraper les retards » replanifie à partir d'aujourd'hui.</p><h4>Liens</h4><p>FD : fin → début (le plus courant) · DD : début → début · FF : fin → fin · DF : début → fin. Un décalage négatif permet un chevauchement (ex. FD −2 : la tâche démarre 2 jours avant la fin de la précédente).</p>
     <h4>Compatibilité</h4><p>Importez et exportez les fichiers GanttProject (.gan) et MS Project (.xml). Les fichiers .mpp se convertissent depuis MS Project : Fichier → Enregistrer sous → XML.</p></div>`, 'help');
 }
 /* ---------- boutons, menus, clavier ---------- */
@@ -76,7 +76,7 @@ function bindUI(){
   $('#exportBtn').addEventListener('click', e => { e.stopPropagation(); const m = $('#exportMenu'); m.querySelector('.lock').hidden = !(window.SPAccess && window.SPAccess.level !== 'pending' && !window.SPAccess.canExport); m.hidden ? popMenu(m, e.currentTarget) : m.hidden = true; });
   $('#fileMenu').addEventListener('click', e => { const b = e.target.closest('[data-act]'); if (!b) return; $('#fileMenu').hidden = true; const k = b.dataset.act;
     ({home:() => $('#homeBtn').click(), new:() => window.APHome ? window.APHome.newProject() : window.APModel.load(blankState()), open:() => $('#fileIn').click(), tpl:tplDialog, baseline:setBaseline, baseclear:clearBaseline,
-      sample:() => { if (window.APCloudActive && !confirm('Remplacer le planning ouvert par l\'exemple ? (annulable avec Ctrl+Z)')) return; edit(() => { const nm = state.name; state = sample(); if (window.APCloudActive){ state.name = nm; state.isSample = false; } }); requestAnimationFrame(() => scrollToDay(todayDay() - 10)); }, help:helpDialog})[k]?.(); });
+      sample:() => { if (window.APCloudActive && !confirm('Remplacer le planning ouvert par l\'exemple ? (annulable avec Ctrl+Z)')) return; edit(() => { const nm = state.name; state = sample(); if (window.APCloudActive){ state.name = nm; state.isSample = false; } }); requestAnimationFrame(() => scrollToDay(todayDay() - 10)); }, help:helpDialog, level:levelResources, catchup:catchUp, palette:openPalette})[k]?.(); });
   $('#exportMenu').addEventListener('click', e => { const b = e.target.closest('[data-act]'); if (!b) return; $('#exportMenu').hidden = true; doExport(b.dataset.act); });
   $('#fileIn').addEventListener('change', e => { const f = e.target.files[0]; e.target.value = ''; if (!f) return; const r = new FileReader();
     r.onload = () => { try { const s = parseFile(f.name, r.result); const nm = state.name; edit(() => { state = s; if (window.APCloudActive) state.name = nm; }); sel.clear(); renderPanel(); toast(`${s.els.length} tâches importées depuis ${f.name}.`); requestAnimationFrame(() => fitAll()); } catch(x){ toast('Import impossible : ' + (x.message || x), 6000); } };
@@ -98,7 +98,7 @@ function bindUI(){
     if (k === 'Insert' || (k === 'Enter' && !sel.size)){ e.preventDefault(); cmd(e.shiftKey ? 'addSub' : 'add'); return; }
     if (k === 'Tab'){ e.preventDefault(); cmd(e.shiftKey ? 'outdent' : 'indent'); return; }
     if (e.altKey && (k === 'ArrowUp' || k === 'ArrowDown')){ e.preventDefault(); cmd(k === 'ArrowUp' ? 'up' : 'down'); return; }
-    if (k === 'ArrowUp' || k === 'ArrowDown'){ const rows = visibleRows(), i = rows.findIndex(t => t.id === focusId), j = clamp((i < 0 ? 0 : i) + (k === 'ArrowUp' ? -1 : 1), 0, rows.length - 1); if (rows[j]){ e.preventDefault(); pick(rows[j].id, e.shiftKey ? {shiftKey:true} : {}); focusId = rows[j].id; $(`.grow[data-id="${rows[j].id}"]`)?.scrollIntoView({block:'nearest'}); } return; }
+    if (k === 'ArrowUp' || k === 'ArrowDown'){ const rows = visibleRows(), i = rows.findIndex(t => t.id === focusId), j = clamp((i < 0 ? 0 : i) + (k === 'ArrowUp' ? -1 : 1), 0, rows.length - 1); if (rows[j]){ e.preventDefault(); pick(rows[j].id, e.shiftKey ? {shiftKey:true} : {}); focusId = rows[j].id; revealRow(rows[j].id); $(`.grow[data-id="${rows[j].id}"]`)?.scrollIntoView({block:'nearest'}); } return; }
     if (k === 'Delete' || k === 'Backspace'){ e.preventDefault(); cmd('del'); return; }
     if (k === 'F2' && focusId){ e.preventDefault(); const c = $(`.grow[data-id="${focusId}"] .c-name`); if (c) inlineEdit(focusId, 'name', c); return; }
     if (k === 'Enter' && focusId){ e.preventDefault(); openTaskEdit(focusId); return; }
@@ -115,7 +115,7 @@ window.APTheme = setTheme;
 (() => {
   let s = null; try { s = JSON.parse(localStorage.getItem('archiphase.v1') || 'null'); } catch(e){}
   state = s && Array.isArray(s.els) ? migrate(s) : blankState();
-  bindUI(); bindPanel(); setTab('task'); refresh(); renderPanel();
+  bindUI(); bindPanel(); bindTools(); setTab('task'); refresh(); renderPanel();
 })();
 /* résumé du projet pour la carte de l'accueil (< 800 caractères) */
 function projInfo(){ try {

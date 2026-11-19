@@ -51,16 +51,35 @@ function cols(){
   const fixed = c.reduce((a, x) => a + x[2], 0); c.find(x => x[0] === 'name')[2] = Math.max(120, tw - fixed);
   return {c, tw:c.reduce((a, x) => a + x[2], 0)};
 }
+/* Grands plannings (plus de VIRT lignes visibles) : seules les lignes proches de l'écran sont dessinées, le reste du défilement est réservé à vide. */
+const VIRT = 250;
+let winRaf = 0;
+function onGanttScroll(e){
+  const gw = e.currentTarget; if (!gw._win || winRaf) return;
+  winRaf = requestAnimationFrame(() => { winRaf = 0; const [a, b] = gw._win, rh = RH(), n = visibleRows().length, top = Math.floor((gw.scrollTop - HH) / rh), bot = Math.ceil((gw.scrollTop + gw.clientHeight) / rh);
+    if ((a > 0 && top < a + 8) || (b < n - 1 && bot > b - 8)) renderGantt(); });
+}
+/* amène une ligne à l'écran (et la dessine si le planning est fenêtré) */
+function revealRow(id){
+  const gw = $('#ganttView .gw'); if (!gw) return; const i = visibleRows().findIndex(t => t.id === id); if (i < 0) return;
+  const rh = RH(), y = HH + i * rh;
+  if (y < gw.scrollTop + HH || y + rh > gw.scrollTop + gw.clientHeight){ gw.scrollTop = Math.max(0, y - gw.clientHeight / 2); if (gw._win) renderGantt(); }
+}
 function renderGantt(){
   const host = $('#ganttView'); let gw = host.querySelector('.gw');
   const keep = gw ? [gw.scrollLeft, gw.scrollTop] : null;
-  if (!gw){ host.innerHTML = '<div class="gw" tabindex="-1"></div>'; gw = host.querySelector('.gw'); bindGantt(gw); }
+  if (!gw){ host.innerHTML = '<div class="gw" tabindex="-1"></div>'; gw = host.querySelector('.gw'); bindGantt(gw); gw.addEventListener('scroll', onGanttScroll, {passive:true}); }
   tlRange();
   const rows = visibleRows(), rh = RH(), H = Math.max(rows.length * rh, gw.clientHeight - HH), W = X(TL.d1 + 1), {c, tw} = cols(), W1 = wbs();
   const gt = c.map(x => x[2] + 'px').join(' ');
+  let i0 = 0, i1 = rows.length - 1, ys = {};
+  rows.forEach((t, i) => { ys[t.id] = i * rh; });
+  if (rows.length > VIRT){ const st = gw.scrollTop || 0, vh = gw.clientHeight || 900; i0 = Math.max(0, Math.floor((st - HH) / rh) - 30); i1 = Math.min(rows.length - 1, Math.ceil((st + vh) / rh) + 30); gw._win = [i0, i1]; } else gw._win = null;
+  const inWin = i => i >= i0 && i <= i1, idx = {}; if (gw._win) rows.forEach((t, i) => { idx[t.id] = i; });
   let th = `<div class="gth" style="grid-template-columns:${gt}">${c.map(x => `<div class="c-${x[0]}">${x[1]}</div>`).join('')}<i class="gsplit" title="Glisser pour élargir le tableau"></i></div>`;
-  let tb = '', bars = '', ys = {};
+  let tb = '', bars = '';
   rows.forEach((t, i) => {
+    if (i < i0 || i > i1) return;
     const r = C[t.id], y = i * rh, s = sel.has(t.id), lv = r.lvl, isS = r.sum, late = behind(t);
     ys[t.id] = y;
     const cells = {wbs:`<div class="c-wbs">${W1[t.id]}</div>`,
@@ -82,8 +101,9 @@ function renderGantt(){
   });
   // liens
   let lk = '';
-  rows.forEach(t => t.deps.forEach(L => {
+  rows.forEach((t, ti) => t.deps.forEach(L => {
     if (!(L.id in ys) || !(t.id in ys)) return;
+    if (gw._win && !inWin(ti) && !inWin(idx[L.id])) return;
     const p = byId(L.id), rp = C[L.id], rs = C[t.id], py = ys[L.id] + rh / 2, sy = ys[t.id] + rh / 2;
     const pS = X(rp.ds) - (p.ms ? 0 : 0), pE = p.ms ? X(rp.ds) + 9 : X(rp.de + 1), sS = t.ms ? X(rs.ds) - 9 : X(rs.ds), sE = t.ms ? X(rs.ds) + 9 : X(rs.de + 1);
     const g = 9, dir = sy > py ? 1 : -1, mid = sy - dir * rh / 2; let d;

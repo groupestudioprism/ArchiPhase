@@ -1178,6 +1178,26 @@ a.ap-link{text-decoration:none}
 .pdur input{flex:1 1 0;min-width:0}
 .pdur select{flex:0 0 auto;width:auto;min-width:96px}
 .pdur-n{font-weight:500;color:var(--mut);font-size:11px;margin-top:-1px}
+
+/* courbe en S (onglet Projet) */
+.scurve{width:100%;height:auto;display:block;margin:4px 0 0}
+/* palette de commandes (Ctrl+K) */
+.pal{position:fixed;inset:0;z-index:90;background:rgb(7 17 42 / .45);display:flex;justify-content:center;align-items:flex-start;padding:max(8vh,24px) 12px 12px}
+.pal-card{width:min(620px,100%);max-height:min(70vh,560px);display:flex;flex-direction:column;background:var(--panel);border:1px solid var(--line);border-radius:14px;box-shadow:0 24px 70px rgb(7 17 42 / .35);overflow:hidden}
+.pal-in{border:0;border-bottom:1px solid var(--line);background:transparent;color:var(--ink);font:inherit;font-size:15px;padding:15px 18px;outline:0}
+.pal-l{overflow:auto;padding:6px}
+.pal-i{display:grid;grid-template-columns:auto 1fr;gap:2px 10px;align-items:center;width:100%;text-align:left;border:0;background:transparent;color:var(--ink);font:inherit;padding:9px 12px;border-radius:9px;cursor:pointer}
+.pal-i small{grid-column:2;color:var(--mut);font-size:11.5px}
+.pal-i.on,.pal-i:hover{background:color-mix(in srgb,var(--accent) 14%,transparent)}
+.pal-k{font-style:normal;font-size:10.5px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;padding:2px 7px;border-radius:6px;background:var(--line);color:var(--mut)}
+.pal-k.task{background:color-mix(in srgb,var(--accent) 20%,transparent);color:var(--accent)}
+.pal-k.new{background:#22B488;color:#fff}
+.pal-e{padding:18px;text-align:center;color:var(--mut)}
+.pal-f{display:flex;gap:16px;padding:8px 16px;border-top:1px solid var(--line);color:var(--mut);font-size:11px}
+@media (max-width:860px){.pal{padding-top:12px}.pal-f{display:none}}
+.pal-i .pal-k{grid-column:1;grid-row:1;justify-self:start}
+.pal-i b{grid-column:2;grid-row:1;min-width:0}
+.pal-i small{grid-column:2;grid-row:2}
 </style>
 <div id="splash" role="status" aria-live="polite">
   <div class="sp-stage" role="img" aria-label="ARCHIPHASE, planification et phasage de projets">
@@ -1327,6 +1347,7 @@ a.ap-link{text-decoration:none}
       <label class="gsel" title="Échelle de temps"><span class="vh">Échelle</span><select id="zoomSel"><option value="day">Jours</option><option value="week" selected>Semaines</option><option value="month">Mois</option><option value="quarter">Trimestres</option></select></label>
       <button class="gb" data-cmd="today" title="Aller à aujourd'hui (T)"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v18M8 3h8"/><circle cx="12" cy="12" r="2.5"/></svg><span>Aujourd'hui</span></button>
       <button class="gb ic" data-cmd="fit" title="Tout afficher" aria-label="Tout afficher"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg></button>
+      <button class="gb ic" data-pal title="Rechercher et commandes (Ctrl+K)" aria-label="Rechercher et commandes"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="6.5"/><path d="M16 16l5 5"/></svg></button>
     </div>
     <div class="gg">
       <button class="gb tg" data-tog="crit" aria-pressed="false" title="Chemin critique"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 17l5-5 4 4 8-8"/><path d="M15 8h5v5"/></svg><span>Critique</span></button>
@@ -1354,6 +1375,9 @@ a.ap-link{text-decoration:none}
   <button data-act="baseline"><b>Enregistrer la référence</b><span>Fige le planning actuel pour comparer les écarts plus tard</span></button>
   <button data-act="baseclear"><b>Effacer la référence</b><span>Supprime le planning de référence enregistré</span></button>
   <button data-act="sample"><b>Charger l'exemple</b><span>Réseaux d'assainissement et réfection de voirie</span></button>
+  <button data-act="palette"><b>Rechercher / commandes (Ctrl+K)</b><span>Retrouver une tâche, lancer une action, créer une tâche au clavier</span></button>
+  <button data-act="level"><b>Niveler les ressources</b><span>Décale les tâches pour supprimer les surcharges (annulable)</span></button>
+  <button data-act="catchup"><b>Rattraper les retards</b><span>Replanifie à partir d'aujourd'hui ce qui n'a pas été fait (annulable)</span></button>
   <button data-act="help"><b>Raccourcis et aide</b><span>Clavier, souris, glisser-déposer</span></button>
 </div>
 <div class="menu" id="exportMenu" hidden><div class="lbl">Exporter <span class="lock" hidden>· licence requise</span></div>
@@ -3664,16 +3688,35 @@ function cols(){
   const fixed = c.reduce((a, x) => a + x[2], 0); c.find(x => x[0] === 'name')[2] = Math.max(120, tw - fixed);
   return {c, tw:c.reduce((a, x) => a + x[2], 0)};
 }
+/* Grands plannings (plus de VIRT lignes visibles) : seules les lignes proches de l'écran sont dessinées, le reste du défilement est réservé à vide. */
+const VIRT = 250;
+let winRaf = 0;
+function onGanttScroll(e){
+  const gw = e.currentTarget; if (!gw._win || winRaf) return;
+  winRaf = requestAnimationFrame(() => { winRaf = 0; const [a, b] = gw._win, rh = RH(), n = visibleRows().length, top = Math.floor((gw.scrollTop - HH) / rh), bot = Math.ceil((gw.scrollTop + gw.clientHeight) / rh);
+    if ((a > 0 && top < a + 8) || (b < n - 1 && bot > b - 8)) renderGantt(); });
+}
+/* amène une ligne à l'écran (et la dessine si le planning est fenêtré) */
+function revealRow(id){
+  const gw = $('#ganttView .gw'); if (!gw) return; const i = visibleRows().findIndex(t => t.id === id); if (i < 0) return;
+  const rh = RH(), y = HH + i * rh;
+  if (y < gw.scrollTop + HH || y + rh > gw.scrollTop + gw.clientHeight){ gw.scrollTop = Math.max(0, y - gw.clientHeight / 2); if (gw._win) renderGantt(); }
+}
 function renderGantt(){
   const host = $('#ganttView'); let gw = host.querySelector('.gw');
   const keep = gw ? [gw.scrollLeft, gw.scrollTop] : null;
-  if (!gw){ host.innerHTML = '<div class="gw" tabindex="-1"></div>'; gw = host.querySelector('.gw'); bindGantt(gw); }
+  if (!gw){ host.innerHTML = '<div class="gw" tabindex="-1"></div>'; gw = host.querySelector('.gw'); bindGantt(gw); gw.addEventListener('scroll', onGanttScroll, {passive:true}); }
   tlRange();
   const rows = visibleRows(), rh = RH(), H = Math.max(rows.length * rh, gw.clientHeight - HH), W = X(TL.d1 + 1), {c, tw} = cols(), W1 = wbs();
   const gt = c.map(x => x[2] + 'px').join(' ');
+  let i0 = 0, i1 = rows.length - 1, ys = {};
+  rows.forEach((t, i) => { ys[t.id] = i * rh; });
+  if (rows.length > VIRT){ const st = gw.scrollTop || 0, vh = gw.clientHeight || 900; i0 = Math.max(0, Math.floor((st - HH) / rh) - 30); i1 = Math.min(rows.length - 1, Math.ceil((st + vh) / rh) + 30); gw._win = [i0, i1]; } else gw._win = null;
+  const inWin = i => i >= i0 && i <= i1, idx = {}; if (gw._win) rows.forEach((t, i) => { idx[t.id] = i; });
   let th = `<div class="gth" style="grid-template-columns:${gt}">${c.map(x => `<div class="c-${x[0]}">${x[1]}</div>`).join('')}<i class="gsplit" title="Glisser pour élargir le tableau"></i></div>`;
-  let tb = '', bars = '', ys = {};
+  let tb = '', bars = '';
   rows.forEach((t, i) => {
+    if (i < i0 || i > i1) return;
     const r = C[t.id], y = i * rh, s = sel.has(t.id), lv = r.lvl, isS = r.sum, late = behind(t);
     ys[t.id] = y;
     const cells = {wbs:`<div class="c-wbs">${W1[t.id]}</div>`,
@@ -3695,8 +3738,9 @@ function renderGantt(){
   });
   // liens
   let lk = '';
-  rows.forEach(t => t.deps.forEach(L => {
+  rows.forEach((t, ti) => t.deps.forEach(L => {
     if (!(L.id in ys) || !(t.id in ys)) return;
+    if (gw._win && !inWin(ti) && !inWin(idx[L.id])) return;
     const p = byId(L.id), rp = C[L.id], rs = C[t.id], py = ys[L.id] + rh / 2, sy = ys[t.id] + rh / 2;
     const pS = X(rp.ds) - (p.ms ? 0 : 0), pE = p.ms ? X(rp.ds) + 9 : X(rp.de + 1), sS = t.ms ? X(rs.ds) - 9 : X(rs.ds), sE = t.ms ? X(rs.ds) + 9 : X(rs.de + 1);
     const g = 9, dir = sy > py ? 1 : -1, mid = sy - dir * rh / 2; let d;
@@ -3947,7 +3991,7 @@ function projStats(){
   const leaves = state.els.filter(t => !C[t.id].sum), ms = leaves.filter(t => t.ms).length, crit = leaves.filter(t => C[t.id].crit && !t.ms).length, late = leaves.filter(behind).length;
   return `<div class="pinfo big"><div><span>Début</span><b>${fmtD(PROJ.start)}</b></div><div><span>Fin</span><b>${fmtD(PROJ.end)}</b></div><div><span>Durée</span><b>${fmtDur(Math.max(0, PROJ.ef - PROJ.es + 1))}</b></div><div><span>Avancement</span><b>${PROJ.p} %</b></div>
     <div><span>Tâches</span><b>${leaves.length - ms}</b></div><div><span>Jalons</span><b>${ms}</b></div><div><span>Critiques</span><b>${crit}</b></div><div><span>En retard</span><b class="${late ? 'neg' : ''}">${late}</b></div>${PROJ.cost ? `<div class="w2"><span>Coût estimé (ressources)</span><b>${eur(PROJ.cost)}</b></div>` : ''}${state.base ? `<div class="w2"><span>Écart sur la référence</span><b class="${PROJ.late ? 'neg' : ''}">${PROJ.late ? '+' + PROJ.late + ' j ouvrés' : 'Aucun retard'}</b></div>` : ''}</div>
-    <div class="pbar"><i style="width:${PROJ.p}%"></i></div>`;
+    <div class="pbar"><i style="width:${PROJ.p}%"></i></div>${sCurveSvg()}`;
 }
 function projectPanel(){
   const m = state.meta;
@@ -4280,6 +4324,139 @@ function thumb(){
   } catch(e){ return ''; }
 }
 
+/* ==== 75-tools.js ==== */
+/* ============ ARCHIPHASE · outils : nivellement des ressources, rattrapage des retards, palette de commandes, courbe en S ============ */
+
+/* ---------- Nivellement automatique des ressources ----------
+   Repère le premier jour où une ressource dépasse sa capacité, décale (vers l'avenir) la tâche non commencée qui a le plus de marge
+   juste après la fin d'une tâche concurrente, puis recommence jusqu'à ne plus avoir de surcharge. Une seule action annulable (Ctrl+Z). */
+function levelResources(){
+  if (state.view.ro) return toast('Ce projet vous est partagé en lecture seule.');
+  if (!state.res.length) return toast('Aucune ressource : ajoutez-en dans l\'onglet « Ressources » du panneau.');
+  const was = new Map(state.els.map(t => [t.id, t.s])), stuck = new Set(); let endBefore = 0, partial = false;
+  edit(() => {
+    schedule(); endBefore = PROJ.ef;
+    const cap = Object.fromEntries(state.res.map(r => [r.id, r.cap])), skip = new Set();
+    const t0 = Date.now();
+    for (let guard = 0; guard < 4000; guard++){
+      if (Date.now() - t0 > 8000){ partial = true; break; }
+      const day = new Map();
+      state.els.forEach(t => { const r = C[t.id]; if (!r || r.sum || t.ms) return;
+        t.res.forEach(a => { if (!cap[a.id]) return; for (let w = r.es; w <= r.ef; w++){ const k = a.id + ':' + w; let e = day.get(k); if (!e) day.set(k, e = {rid:a.id, w, u:0, ts:[]}); e.u += a.u; e.ts.push(t); } }); });
+      // premier jour en surcharge de chaque ressource ; une tâche décalée par ressource et par passe, puis un seul recalcul
+      const first = new Map();
+      for (const e of day.values()) if (e.u > cap[e.rid] && !skip.has(e.rid + ':' + e.w) && (!first.has(e.rid) || e.w < first.get(e.rid).w)) first.set(e.rid, e);
+      if (!first.size) break;
+      const done = new Set(); let any = false;
+      for (const hit of first.values()){
+        const cand = hit.ts.filter(t => t.p === 0 && !done.has(t.id));
+        if (hit.ts.length < 2 || !cand.length){ skip.add(hit.rid + ':' + hit.w); stuck.add(hit.rid); continue; }
+        cand.sort((a, b) => (C[b.id].slack - C[a.id].slack) || (C[b.id].es - C[a.id].es));
+        const t = cand[0], others = hit.ts.filter(x => x !== t);
+        const nw = Math.max(C[t.id].es + 1, Math.min(...others.map(x => C[x.id].ef)) + 1);
+        t.s = dayToIso(CAL.toD(nw)); done.add(t.id); any = true;
+      }
+      if (any) schedule();
+    }
+  });
+  const moved = state.els.filter(t => was.get(t.id) !== t.s).length, gap = PROJ.ef - endBefore;
+  if (!moved && !stuck.size) return toast('Aucune surcharge : les ressources sont déjà dans leur capacité.');
+  toast(`Nivellement : ${moved} tâche${moved > 1 ? 's' : ''} décalée${moved > 1 ? 's' : ''}, ${gap > 0 ? 'fin du projet repoussée de ' + fmtDur(gap) : 'fin du projet inchangée'}`
+    + (partial ? ' · limité à 8 s : relancez pour continuer' : '') + (stuck.size ? ` · surcharge restante sur ${[...stuck].map(id => state.res.find(r => r.id === id)?.name).filter(Boolean).join(', ')} (tâche seule au-dessus de sa capacité, ou déjà commencée)` : ''), 6000);
+}
+
+/* ---------- Rattraper les retards : tout ce qui devait être fait repart d'aujourd'hui ---------- */
+function catchUp(){
+  if (state.view.ro) return toast('Ce projet vous est partagé en lecture seule.');
+  const td = todayDay(), tw = CAL.toW(td); let n = 0;
+  edit(() => {
+    schedule();
+    state.els.forEach(t => { const r = C[t.id]; if (!r || r.sum || t.ms || t.p >= 100) return;
+      if (t.p === 0 && r.ds < td){ t.s = dayToIso(CAL.toD(tw)); n++; }
+      else if (t.p > 0 && r.de < td){ const rest = Math.max(1, Math.ceil(t.d * (1 - t.p / 100))), nd = tw + rest - r.es; if (nd > t.d){ t.d = nd; n++; } } });
+  });
+  toast(n ? `${n} tâche${n > 1 ? 's' : ''} replanifiée${n > 1 ? 's' : ''} à partir d'aujourd'hui (annulable avec Ctrl+Z)` : 'Rien à rattraper : aucune tâche en retard.');
+}
+
+/* ---------- Courbe en S : avancement prévu (d'après le planning) et réel ---------- */
+function sCurveSvg(){
+  const leaves = state.els.filter(t => C[t.id] && !C[t.id].sum && !t.ms), W = leaves.reduce((s, t) => s + C[t.id].dur, 0), n = PROJ.ef - PROJ.es + 1;
+  if (!W || n < 2) return '';
+  const acc = new Float64Array(n + 1); leaves.forEach(t => { const r = C[t.id]; for (let w = r.es; w <= r.ef; w++) acc[w - PROJ.es + 1]++; });
+  const cum = [0]; let c = 0; for (let i = 1; i <= n; i++){ c += acc[i]; cum.push(c / W * 100); }
+  const VW = 300, VH = 118, px = i => 10 + i / n * (VW - 20), py = v => VH - 16 - v / 100 * (VH - 30), step = Math.max(1, Math.ceil(n / 140)), pts = [];
+  for (let i = 0; i <= n; i += step) pts.push(i); if (pts[pts.length - 1] !== n) pts.push(n);
+  const path = pts.map((i, k) => (k ? 'L' : 'M') + px(i).toFixed(1) + ' ' + py(cum[i]).toFixed(1)).join('');
+  const ti = CAL.toW(todayDay()) - PROJ.es, inside = ti >= 0 && ti <= n, plan = inside ? Math.round(cum[ti]) : null, real = PROJ.p;
+  const grid = [0, 50, 100].map(v => `<line x1="10" x2="${VW - 10}" y1="${py(v)}" y2="${py(v)}" stroke="var(--line)" stroke-width="1"/><text x="${VW - 10}" y="${py(v) - 3}" text-anchor="end" font-size="8" fill="var(--mut)">${v} %</text>`).join('');
+  const mark = inside ? `<line x1="${px(ti)}" x2="${px(ti)}" y1="12" y2="${VH - 16}" stroke="var(--mut)" stroke-dasharray="3 3"/><circle cx="${px(ti)}" cy="${py(plan)}" r="3.5" fill="var(--panel)" stroke="var(--accent)" stroke-width="2"/><circle cx="${px(ti)}" cy="${py(real)}" r="4" fill="${real + 3 < plan ? '#E0524F' : '#22B488'}"/>` : '';
+  const gap = inside ? real - plan : 0;
+  return `<h4 class="psec">Courbe en S</h4><svg class="scurve" viewBox="0 0 ${VW} ${VH}" role="img" aria-label="Avancement prévu et réel">${grid}<path d="${path}" fill="none" stroke="var(--accent)" stroke-width="2.2" stroke-linejoin="round"/>${mark}
+    <text x="10" y="${VH - 3}" font-size="8" fill="var(--mut)">${fmtD(PROJ.start)}</text><text x="${VW - 10}" y="${VH - 3}" text-anchor="end" font-size="8" fill="var(--mut)">${fmtD(PROJ.end)}</text></svg>
+    <p class="pnote">${inside ? `Aujourd'hui : prévu <b>${plan} %</b> · réel <b>${real} %</b>${gap < -3 ? ` · <b class="neg">en retard de ${-gap} points</b>` : gap > 3 ? ` · en avance de ${gap} points` : ' · dans les temps'}` : 'Courbe cumulée du travail prévu sur la durée du projet.'}</p>`;
+}
+
+/* ---------- Palette de commandes (Ctrl+K) : chercher une tâche, lancer une action, créer une tâche en tapant « Nom 3 sem » ---------- */
+const normTxt = s => String(s ?? '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
+function closePalette(){ document.getElementById('apPal')?.remove(); }
+function palActions(){
+  const clickTog = k => $(`.gbar [data-tog="${k}"]`)?.click(), zoom = z => { const s = $('#zoomSel'); if (s){ s.value = z; s.dispatchEvent(new Event('change', {bubbles:true})); } };
+  return [
+    ['Nouvelle tâche', 'ajouter creer', () => cmd('add')], ['Nouveau jalon', 'ajouter creer', () => cmd('addMs')], ['Nouvelle sous-tâche', 'ajouter creer', () => cmd('addSub')],
+    ['Niveler les ressources', 'surcharge capacite equilibrer', levelResources], ['Rattraper les retards (repartir d\'aujourd\'hui)', 'replanifier retard aujourd hui', catchUp],
+    ['Aller à aujourd\'hui', 'date', () => cmd('today')], ['Tout afficher', 'ajuster zoom', () => cmd('fit')],
+    ['Vue Gantt', 'diagramme planning 1', () => setMode('gantt')], ['Vue Ressources', 'charge equipes 2', () => setMode('res')], ['Vue PERT', 'reseau 3', () => setMode('pert')],
+    ['Échelle : jours', 'zoom', () => zoom('day')], ['Échelle : semaines', 'zoom', () => zoom('week')], ['Échelle : mois', 'zoom', () => zoom('month')],
+    ['Afficher / masquer le chemin critique', 'critique', () => clickTog('crit')], ['Afficher / masquer la référence', 'baseline ecart', () => clickTog('base')],
+    ['Enregistrer la référence', 'baseline figer', setBaseline], ['Annuler', 'undo', undo], ['Rétablir', 'redo', redo],
+    ['Thème clair / sombre', 'dark mode nuit', () => setTheme(document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark')],
+    ['Exporter : image PNG', 'export', () => doExport('png')], ['Exporter : imprimer / PDF', 'export', () => doExport('pdf')], ['Exporter : tableau CSV', 'export excel', () => doExport('csv')],
+    ['Exporter : MS Project (.xml)', 'export', () => doExport('msp')], ['Exporter : GanttProject (.gan)', 'export', () => doExport('gan')], ['Exporter : agenda (.ics)', 'export jalons', () => doExport('ics')],
+    ['Raccourcis et aide', 'clavier', helpDialog],
+  ].map(([t, k, run]) => ({t, k: normTxt(t + ' ' + k), run, kind:'cmd'}));
+}
+function openPalette(){
+  if (document.getElementById('apPal')) return closePalette();
+  const o = document.createElement('div'); o.id = 'apPal'; o.className = 'pal';
+  o.innerHTML = `<div class="pal-card" role="dialog" aria-modal="true" aria-label="Palette de commandes"><input class="pal-in" type="text" autocomplete="off" spellcheck="false" placeholder="Chercher une tâche ou une commande… ou « Pose bordures 2 sem » pour créer" aria-label="Rechercher"><div class="pal-l" role="listbox"></div><div class="pal-f"><span>↑↓ choisir</span><span>↵ valider</span><span>Échap fermer</span></div></div>`;
+  document.body.appendChild(o);
+  const inp = o.querySelector('input'), list = o.querySelector('.pal-l'), W1 = wbs(), acts = palActions(); let items = [], cur = 0;
+  const goTask = t => { ancestors(t).forEach(a => { a.c = false; }); sel = new Set([t.id]); focusId = t.id; if (mode !== 'gantt') setMode('gantt'); else refresh(); renderPanel();
+    revealRow(t.id); requestAnimationFrame(() => { scrollToDay(C[t.id].ds - 3); $(`.grow[data-id="${t.id}"]`)?.scrollIntoView({block:'nearest'}); }); };
+  const build = q => {
+    const n = normTxt(q.trim()), out = [];
+    if (n){
+      state.els.filter(t => normTxt(t.name).includes(n) || normTxt(W1[t.id]) === n).slice(0, 8).forEach(t => out.push({kind:'task', t:t.name, sub:`${W1[t.id]} · ${t.ms ? 'jalon ' + fmtD(C[t.id].ds) : fmtD(C[t.id].ds) + ' → ' + fmtD(C[t.id].de) + ' · ' + fmtDur(C[t.id].dur, t.du)}`, run:() => goTask(t)}));
+      acts.filter(a => n.split(/\s+/).every(w => a.k.includes(w))).slice(0, 8).forEach(a => out.push(a));
+      const m = q.trim().match(/^(.*?)\s+(\d+(?:[.,]\d+)?\s*[a-zA-Zéû.]+)$/), dd = m ? parseDur(m[2]) : NaN, nm = (Number.isFinite(dd) && dd > 0 ? m[1] : q.trim()).trim() || q.trim(), d = Number.isFinite(dd) && dd > 0 ? dd : 5;
+      out.push({kind:'new', t:`Créer la tâche « ${nm} »`, sub:`Durée ${fmtDur(d, durUnitOf(m?.[2]) || '')}${selected().length ? ', après la tâche sélectionnée' : ''}`, run:() => {
+        if (state.view.ro) return toast('Ce projet vous est partagé en lecture seule.');
+        let t; edit(() => { const f = selected().slice(-1)[0], d0 = f ? C[f.id].de + 1 : (state.els.length ? PROJ.end + 1 : isoToDay(state.start));
+          t = newTask({name:nm.slice(0, 120), d, s:dayToIso(d0), par:f ? f.par : '', du:durUnitOf(m?.[2]) || ''}); if (f) insertAfter(f, t); else state.els.push(t); });
+        if (t) goTask(t); }});
+    } else acts.slice(0, 12).forEach(a => out.push(a));
+    return out;
+  };
+  const paint = () => { list.innerHTML = items.length ? items.map((x, i) => `<button type="button" class="pal-i${i === cur ? ' on' : ''}" role="option" data-i="${i}" aria-selected="${i === cur}"><i class="pal-k ${x.kind}">${x.kind === 'task' ? 'Tâche' : x.kind === 'new' ? 'Créer' : 'Action'}</i><b>${esc(x.t)}</b>${x.sub ? `<small>${esc(x.sub)}</small>` : ''}</button>`).join('') : '<div class="pal-e">Aucun résultat</div>'; list.querySelector('.on')?.scrollIntoView({block:'nearest'}); };
+  const run = i => { const x = items[i]; if (!x) return; closePalette(); x.run(); };
+  inp.addEventListener('input', () => { items = build(inp.value); cur = 0; paint(); });
+  inp.addEventListener('keydown', e => { e.stopPropagation();
+    if (e.key === 'Escape'){ e.preventDefault(); closePalette(); }
+    else if (e.key === 'ArrowDown' || e.key === 'ArrowUp'){ e.preventDefault(); if (items.length){ cur = (cur + (e.key === 'ArrowDown' ? 1 : items.length - 1)) % items.length; paint(); } }
+    else if (e.key === 'Enter'){ e.preventDefault(); run(cur); } });
+  list.addEventListener('click', e => { const b = e.target.closest('[data-i]'); if (b) run(+b.dataset.i); });
+  o.addEventListener('mousedown', e => { if (e.target === o) closePalette(); });
+  items = build(''); paint(); inp.focus();
+}
+function bindTools(){
+  document.addEventListener('keydown', e => {
+    if (!((e.ctrlKey || e.metaKey) && !e.altKey && e.key.toLowerCase() === 'k')) return;
+    if ($('#app').hidden || !$('#auth').hidden || !$('#home').hidden || !$('#apDlg').hidden || !$('#engDlg').hidden) return;
+    e.preventDefault(); openPalette();
+  });
+  $$('[data-pal]').forEach(b => b.addEventListener('click', openPalette));
+}
+
 /* ==== 80-main.js ==== */
 /* ============ ARCHIPHASE · assemblage : vues, commandes, menus, clavier, pont avec le compte et le cloud ============ */
 function refresh(){
@@ -4345,7 +4522,7 @@ function helpDialog(){
   engDlg(`<div class="ed-h"><h3>Raccourcis et aide</h3><button class="ib ghost" data-x aria-label="Fermer">✕</button></div><div class="help">
     <h4>Souris et doigt</h4><ul><li><b>Glisser une barre</b> : déplacer la tâche (les tâches liées suivent).</li><li><b>Bord droit d'une barre</b> : changer la durée.</li><li><b>Petit triangle sous la barre</b> : avancement.</li><li><b>Rond au bout d'une barre</b> : tirer vers une autre tâche pour les lier (fin → début).</li><li><b>Clic sur une flèche</b> : modifier le type de lien ou le décalage.</li><li><b>Double-clic</b> sur une cellule : la modifier ; sur une barre : ouvrir la fiche.</li><li><b>Clic droit / appui long</b> : menu de la tâche.</li></ul>
     <h4>Clavier</h4><ul class="kb"><li><kbd>Inser</kbd> nouvelle tâche</li><li><kbd>Maj</kbd>+<kbd>Inser</kbd> sous-tâche</li><li><kbd>J</kbd> jalon</li><li><kbd>Tab</kbd> / <kbd>Maj</kbd>+<kbd>Tab</kbd> niveau</li><li><kbd>Alt</kbd>+<kbd>↑</kbd><kbd>↓</kbd> déplacer</li><li><kbd>↑</kbd><kbd>↓</kbd> sélection</li><li><kbd>F2</kbd> renommer</li><li><kbd>L</kbd> lier</li><li><kbd>Suppr</kbd> supprimer</li><li><kbd>Ctrl</kbd>+<kbd>Z</kbd> / <kbd>Y</kbd> annuler / rétablir</li><li><kbd>Ctrl</kbd>+<kbd>D</kbd> dupliquer</li><li><kbd>T</kbd> aujourd'hui</li></ul>
-    <h4>Liens</h4><p>FD : fin → début (le plus courant) · DD : début → début · FF : fin → fin · DF : début → fin. Un décalage négatif permet un chevauchement (ex. FD −2 : la tâche démarre 2 jours avant la fin de la précédente).</p>
+    <h4>Palette de commandes</h4><p>Ctrl+K (ou la loupe) : cherchez une tâche pour la retrouver, lancez une action, ou tapez « Pose bordures 2 sem » pour créer une tâche avec sa durée (j, sem, mois, an). Menu Fichier : « Niveler les ressources » résout les surcharges, « Rattraper les retards » replanifie à partir d'aujourd'hui.</p><h4>Liens</h4><p>FD : fin → début (le plus courant) · DD : début → début · FF : fin → fin · DF : début → fin. Un décalage négatif permet un chevauchement (ex. FD −2 : la tâche démarre 2 jours avant la fin de la précédente).</p>
     <h4>Compatibilité</h4><p>Importez et exportez les fichiers GanttProject (.gan) et MS Project (.xml). Les fichiers .mpp se convertissent depuis MS Project : Fichier → Enregistrer sous → XML.</p></div>`, 'help');
 }
 /* ---------- boutons, menus, clavier ---------- */
@@ -4359,7 +4536,7 @@ function bindUI(){
   $('#exportBtn').addEventListener('click', e => { e.stopPropagation(); const m = $('#exportMenu'); m.querySelector('.lock').hidden = !(window.SPAccess && window.SPAccess.level !== 'pending' && !window.SPAccess.canExport); m.hidden ? popMenu(m, e.currentTarget) : m.hidden = true; });
   $('#fileMenu').addEventListener('click', e => { const b = e.target.closest('[data-act]'); if (!b) return; $('#fileMenu').hidden = true; const k = b.dataset.act;
     ({home:() => $('#homeBtn').click(), new:() => window.APHome ? window.APHome.newProject() : window.APModel.load(blankState()), open:() => $('#fileIn').click(), tpl:tplDialog, baseline:setBaseline, baseclear:clearBaseline,
-      sample:() => { if (window.APCloudActive && !confirm('Remplacer le planning ouvert par l\'exemple ? (annulable avec Ctrl+Z)')) return; edit(() => { const nm = state.name; state = sample(); if (window.APCloudActive){ state.name = nm; state.isSample = false; } }); requestAnimationFrame(() => scrollToDay(todayDay() - 10)); }, help:helpDialog})[k]?.(); });
+      sample:() => { if (window.APCloudActive && !confirm('Remplacer le planning ouvert par l\'exemple ? (annulable avec Ctrl+Z)')) return; edit(() => { const nm = state.name; state = sample(); if (window.APCloudActive){ state.name = nm; state.isSample = false; } }); requestAnimationFrame(() => scrollToDay(todayDay() - 10)); }, help:helpDialog, level:levelResources, catchup:catchUp, palette:openPalette})[k]?.(); });
   $('#exportMenu').addEventListener('click', e => { const b = e.target.closest('[data-act]'); if (!b) return; $('#exportMenu').hidden = true; doExport(b.dataset.act); });
   $('#fileIn').addEventListener('change', e => { const f = e.target.files[0]; e.target.value = ''; if (!f) return; const r = new FileReader();
     r.onload = () => { try { const s = parseFile(f.name, r.result); const nm = state.name; edit(() => { state = s; if (window.APCloudActive) state.name = nm; }); sel.clear(); renderPanel(); toast(`${s.els.length} tâches importées depuis ${f.name}.`); requestAnimationFrame(() => fitAll()); } catch(x){ toast('Import impossible : ' + (x.message || x), 6000); } };
@@ -4381,7 +4558,7 @@ function bindUI(){
     if (k === 'Insert' || (k === 'Enter' && !sel.size)){ e.preventDefault(); cmd(e.shiftKey ? 'addSub' : 'add'); return; }
     if (k === 'Tab'){ e.preventDefault(); cmd(e.shiftKey ? 'outdent' : 'indent'); return; }
     if (e.altKey && (k === 'ArrowUp' || k === 'ArrowDown')){ e.preventDefault(); cmd(k === 'ArrowUp' ? 'up' : 'down'); return; }
-    if (k === 'ArrowUp' || k === 'ArrowDown'){ const rows = visibleRows(), i = rows.findIndex(t => t.id === focusId), j = clamp((i < 0 ? 0 : i) + (k === 'ArrowUp' ? -1 : 1), 0, rows.length - 1); if (rows[j]){ e.preventDefault(); pick(rows[j].id, e.shiftKey ? {shiftKey:true} : {}); focusId = rows[j].id; $(`.grow[data-id="${rows[j].id}"]`)?.scrollIntoView({block:'nearest'}); } return; }
+    if (k === 'ArrowUp' || k === 'ArrowDown'){ const rows = visibleRows(), i = rows.findIndex(t => t.id === focusId), j = clamp((i < 0 ? 0 : i) + (k === 'ArrowUp' ? -1 : 1), 0, rows.length - 1); if (rows[j]){ e.preventDefault(); pick(rows[j].id, e.shiftKey ? {shiftKey:true} : {}); focusId = rows[j].id; revealRow(rows[j].id); $(`.grow[data-id="${rows[j].id}"]`)?.scrollIntoView({block:'nearest'}); } return; }
     if (k === 'Delete' || k === 'Backspace'){ e.preventDefault(); cmd('del'); return; }
     if (k === 'F2' && focusId){ e.preventDefault(); const c = $(`.grow[data-id="${focusId}"] .c-name`); if (c) inlineEdit(focusId, 'name', c); return; }
     if (k === 'Enter' && focusId){ e.preventDefault(); openTaskEdit(focusId); return; }
@@ -4398,7 +4575,7 @@ window.APTheme = setTheme;
 (() => {
   let s = null; try { s = JSON.parse(localStorage.getItem('archiphase.v1') || 'null'); } catch(e){}
   state = s && Array.isArray(s.els) ? migrate(s) : blankState();
-  bindUI(); bindPanel(); setTab('task'); refresh(); renderPanel();
+  bindUI(); bindPanel(); bindTools(); setTab('task'); refresh(); renderPanel();
 })();
 /* résumé du projet pour la carte de l'accueil (< 800 caractères) */
 function projInfo(){ try {

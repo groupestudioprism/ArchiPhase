@@ -225,3 +225,23 @@
 .pdur input{flex:1 1 0;min-width:0}
 .pdur select{flex:0 0 auto;width:auto;min-width:96px}
 .pdur-n{font-weight:500;color:var(--mut);font-size:11px;margin-top:-1px}
+
+/* courbe en S (onglet Projet) */
+.scurve{width:100%;height:auto;display:block;margin:4px 0 0}
+/* palette de commandes (Ctrl+K) */
+.pal{position:fixed;inset:0;z-index:90;background:rgb(7 17 42 / .45);display:flex;justify-content:center;align-items:flex-start;padding:max(8vh,24px) 12px 12px}
+.pal-card{width:min(620px,100%);max-height:min(70vh,560px);display:flex;flex-direction:column;background:var(--panel);border:1px solid var(--line);border-radius:14px;box-shadow:0 24px 70px rgb(7 17 42 / .35);overflow:hidden}
+.pal-in{border:0;border-bottom:1px solid var(--line);background:transparent;color:var(--ink);font:inherit;font-size:15px;padding:15px 18px;outline:0}
+.pal-l{overflow:auto;padding:6px}
+.pal-i{display:grid;grid-template-columns:auto 1fr;gap:2px 10px;align-items:center;width:100%;text-align:left;border:0;background:transparent;color:var(--ink);font:inherit;padding:9px 12px;border-radius:9px;cursor:pointer}
+.pal-i small{grid-column:2;color:var(--mut);font-size:11.5px}
+.pal-i.on,.pal-i:hover{background:color-mix(in srgb,var(--accent) 14%,transparent)}
+.pal-k{font-style:normal;font-size:10.5px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;padding:2px 7px;border-radius:6px;background:var(--line);color:var(--mut)}
+.pal-k.task{background:color-mix(in srgb,var(--accent) 20%,transparent);color:var(--accent)}
+.pal-k.new{background:#22B488;color:#fff}
+.pal-e{padding:18px;text-align:center;color:var(--mut)}
+.pal-f{display:flex;gap:16px;padding:8px 16px;border-top:1px solid var(--line);color:var(--mut);font-size:11px}
+@media (max-width:860px){.pal{padding-top:12px}.pal-f{display:none}}
+.pal-i .pal-k{grid-column:1;grid-row:1;justify-self:start}
+.pal-i b{grid-column:2;grid-row:1;min-width:0}
+.pal-i small{grid-column:2;grid-row:2}

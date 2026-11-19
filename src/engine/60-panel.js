@@ -51,7 +51,7 @@ function projStats(){
   const leaves = state.els.filter(t => !C[t.id].sum), ms = leaves.filter(t => t.ms).length, crit = leaves.filter(t => C[t.id].crit && !t.ms).length, late = leaves.filter(behind).length;
   return `<div class="pinfo big"><div><span>Début</span><b>${fmtD(PROJ.start)}</b></div><div><span>Fin</span><b>${fmtD(PROJ.end)}</b></div><div><span>Durée</span><b>${fmtDur(Math.max(0, PROJ.ef - PROJ.es + 1))}</b></div><div><span>Avancement</span><b>${PROJ.p} %</b></div>
     <div><span>Tâches</span><b>${leaves.length - ms}</b></div><div><span>Jalons</span><b>${ms}</b></div><div><span>Critiques</span><b>${crit}</b></div><div><span>En retard</span><b class="${late ? 'neg' : ''}">${late}</b></div>${PROJ.cost ? `<div class="w2"><span>Coût estimé (ressources)</span><b>${eur(PROJ.cost)}</b></div>` : ''}${state.base ? `<div class="w2"><span>Écart sur la référence</span><b class="${PROJ.late ? 'neg' : ''}">${PROJ.late ? '+' + PROJ.late + ' j ouvrés' : 'Aucun retard'}</b></div>` : ''}</div>
-    <div class="pbar"><i style="width:${PROJ.p}%"></i></div>`;
+    <div class="pbar"><i style="width:${PROJ.p}%"></i></div>${sCurveSvg()}`;
 }
 function projectPanel(){
   const m = state.meta;

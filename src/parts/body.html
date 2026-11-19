@@ -82,6 +82,7 @@
       <label class="gsel" title="Échelle de temps"><span class="vh">Échelle</span><select id="zoomSel"><option value="day">Jours</option><option value="week" selected>Semaines</option><option value="month">Mois</option><option value="quarter">Trimestres</option></select></label>
       <button class="gb" data-cmd="today" title="Aller à aujourd'hui (T)"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v18M8 3h8"/><circle cx="12" cy="12" r="2.5"/></svg><span>Aujourd'hui</span></button>
       <button class="gb ic" data-cmd="fit" title="Tout afficher" aria-label="Tout afficher"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg></button>
+      <button class="gb ic" data-pal title="Rechercher et commandes (Ctrl+K)" aria-label="Rechercher et commandes"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="6.5"/><path d="M16 16l5 5"/></svg></button>
     </div>
     <div class="gg">
       <button class="gb tg" data-tog="crit" aria-pressed="false" title="Chemin critique"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 17l5-5 4 4 8-8"/><path d="M15 8h5v5"/></svg><span>Critique</span></button>
@@ -109,6 +110,9 @@
   <button data-act="baseline"><b>Enregistrer la référence</b><span>Fige le planning actuel pour comparer les écarts plus tard</span></button>
   <button data-act="baseclear"><b>Effacer la référence</b><span>Supprime le planning de référence enregistré</span></button>
   <button data-act="sample"><b>Charger l'exemple</b><span>Réseaux d'assainissement et réfection de voirie</span></button>
+  <button data-act="palette"><b>Rechercher / commandes (Ctrl+K)</b><span>Retrouver une tâche, lancer une action, créer une tâche au clavier</span></button>
+  <button data-act="level"><b>Niveler les ressources</b><span>Décale les tâches pour supprimer les surcharges (annulable)</span></button>
+  <button data-act="catchup"><b>Rattraper les retards</b><span>Replanifie à partir d'aujourd'hui ce qui n'a pas été fait (annulable)</span></button>
   <button data-act="help"><b>Raccourcis et aide</b><span>Clavier, souris, glisser-déposer</span></button>
 </div>
 <div class="menu" id="exportMenu" hidden><div class="lbl">Exporter <span class="lock" hidden>· licence requise</span></div>
