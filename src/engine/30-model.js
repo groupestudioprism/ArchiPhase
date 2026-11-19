@@ -1,6 +1,6 @@
 /* ============ Modèle : projet, tâches, ressources, historique ============
    state.els   : tâches dans l'ordre d'affichage (parcours en profondeur de l'arborescence) — nom « els » commun au cloud des apps Archi
-     {id, name, s (début souhaité, AAAA-MM-JJ), d (durée en jours ouvrés, 0 = jalon), ms (jalon), p (avancement %), par (tâche parente),
+     {id, name, s (début souhaité, AAAA-MM-JJ), d (durée en jours ouvrés, 0 = jalon), du (unité d'affichage : j, s, m, a), ms (jalon), p (avancement %), par (tâche parente),
       deps:[{id, t:'FS'|'SS'|'FF'|'SF', lag}], res:[{id, u (%)}], col, prio, note, c (replié)}
    state.res   : ressources {id, name, role, col, rate (€/jour), cap (%)}
    state.cal   : {week:[dim…sam], hol (fériés français), off:[{from, to, name}], on:[AAAA-MM-JJ]}
@@ -22,7 +22,7 @@ function migrate(s){
   const st = {...b, ...(s || {}), cal:{...b.cal, ...(s?.cal || {})}, meta:{...b.meta, ...(s?.meta || {})}, view:{...b.view, ...(s?.view || {})}};
   st.els = (Array.isArray(st.els) ? st.els : []).filter(t => t && t.id).map(t => ({id:String(t.id), name:String(t.name ?? 'Tâche'), s:t.s || st.start, d:Math.max(0, Math.round(+t.d || 0)), ms:!!t.ms || +t.d === 0,
     p:clamp(Math.round(+t.p || 0), 0, 100), par:t.par ? String(t.par) : '', deps:(t.deps || []).filter(x => x && x.id).map(x => ({id:String(x.id), t:LINKS[x.t] ? x.t : 'FS', lag:Math.round(+x.lag || 0)})),
-    res:(t.res || []).filter(x => x && x.id).map(x => ({id:String(x.id), u:clamp(Math.round(+x.u || 100), 1, 1000)})), col:COLOR[t.col] ? t.col : '', prio:PRIOS[t.prio] ? t.prio : 'normal', note:String(t.note || ''), c:!!t.c}));
+    res:(t.res || []).filter(x => x && x.id).map(x => ({id:String(x.id), u:clamp(Math.round(+x.u || 100), 1, 1000)})), col:COLOR[t.col] ? t.col : '', prio:PRIOS[t.prio] ? t.prio : 'normal', note:String(t.note || ''), c:!!t.c, du:['j', 's', 'm', 'a'].includes(t.du) ? t.du : ''}));
   const ids = new Set(st.els.map(t => t.id));
   st.els.forEach(t => { if (!ids.has(t.par) || t.par === t.id) t.par = ''; t.deps = t.deps.filter(x => ids.has(x.id) && x.id !== t.id); if (t.ms) t.d = 0; });
   st.res = (Array.isArray(st.res) ? st.res : []).filter(r => r && r.id).map(r => ({id:String(r.id), name:String(r.name || 'Ressource'), role:String(r.role || ''), col:COLOR[r.col] ? r.col : 'bleu', rate:Math.max(0, +r.rate || 0), cap:clamp(+r.cap || 100, 1, 10000)}));

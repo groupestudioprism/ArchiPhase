@@ -22,7 +22,7 @@ function renderPert(){
     const ls = CAL.toD(r.lf - Math.max(0, r.dur) + 1), lf = CAL.toD(Math.max(r.lf, r.es));
     boxes += `<g class="pn${crit ? ' crit' : ''}${s ? ' sel' : ''}" data-id="${t.id}" transform="translate(${x} ${y})"><rect width="${BW}" height="${BH}" rx="10"/><rect class="pc" width="6" height="${BH}" rx="3" style="fill:${c}"/>
       <text x="16" y="21" class="pt">${esc(t.name.length > 28 ? t.name.slice(0, 27) + '…' : t.name)}</text>
-      <text x="16" y="41" class="ps">${t.ms ? 'Jalon' : r.dur + ' j'} · ${r.p} %${crit ? ' · critique' : ` · marge ${Math.max(0, r.slack)} j`}</text>
+      <text x="16" y="41" class="ps">${t.ms ? 'Jalon' : fmtDur(r.dur, t.du)} · ${r.p} %${crit ? ' · critique' : ` · marge ${Math.max(0, r.slack)} j`}</text>
       <line x1="10" x2="${BW - 10}" y1="52" y2="52"/><text x="16" y="68" class="pd">Tôt ${fmtD(r.ds)} → ${fmtD(r.de)}</text><text x="16" y="81" class="pd mut">Tard ${fmtD(ls)} → ${fmtD(lf)}</text>
       ${t.ms ? `<path class="pmk" d="M${BW - 22} 12l8 8-8 8-8-8z" style="fill:${c}"/>` : ''}</g>`; });
   host.innerHTML = `<div class="pw"><div class="pin" style="width:${W * pertZoom}px;height:${H * pertZoom}px"><svg width="${W * pertZoom}" height="${H * pertZoom}" viewBox="0 0 ${W} ${H}"><defs>${['paL', 'paC'].map(k => `<marker id="${k}" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto"><path d="M1 1L9 5L1 9z"/></marker>`).join('')}</defs>${links}${boxes}</svg></div>

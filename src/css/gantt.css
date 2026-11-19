@@ -219,3 +219,9 @@
 @media (pointer:coarse){ .h-end{width:14px;right:-7px} .h-p{border-width:8px;bottom:-12px;margin-left:-8px} .bar{height:24px} .bar .bin{line-height:24px} }
 #pbody .ph{display:block}
 .pu input{width:58px!important;flex:none}
+
+/* durée d'une tâche : valeur + unité (j, semaines, mois, ans) */
+.pdur{display:flex;gap:6px}
+.pdur input{flex:1 1 0;min-width:0}
+.pdur select{flex:0 0 auto;width:auto;min-width:96px}
+.pdur-n{font-weight:500;color:var(--mut);font-size:11px;margin-top:-1px}

@@ -29,9 +29,9 @@ function taskPanel(){
   const opts = (cur, excl) => state.els.filter(x => !excl.has(x.id)).map(x => `<option value="${x.id}"${x.id === cur ? ' selected' : ''}>${W1[x.id]} · ${esc(x.name)}</option>`).join('');
   const excl = new Set(subtree(t).map(x => x.id).concat(ancestors(t).map(x => x.id)));
   return `<div class="ph"><small>${W1[t.id]} · ${S ? 'Tâche récapitulative' : t.ms ? 'Jalon' : 'Tâche'}</small><input id="tpName" class="ph-in" data-pt="name" value="${esc(t.name)}" aria-label="Nom de la tâche"></div>
-    ${S ? `<div class="pinfo"><div><span>Début</span><b>${fmtD(r.ds)}</b></div><div><span>Fin</span><b>${fmtD(r.de)}</b></div><div><span>Durée</span><b>${r.dur} j</b></div><div><span>Avancement</span><b>${r.p} %</b></div></div><p class="pnote">Dates et avancement calculés à partir des ${kids(t.id).length} sous-tâches.</p>` : `
+    ${S ? `<div class="pinfo"><div><span>Début</span><b>${fmtD(r.ds)}</b></div><div><span>Fin</span><b>${fmtD(r.de)}</b></div><div><span>Durée</span><b>${fmtDur(r.dur)}</b></div><div><span>Avancement</span><b>${r.p} %</b></div></div><p class="pnote">Dates et avancement calculés à partir des ${kids(t.id).length} sous-tâches.</p>` : `
     <div class="pseg"><button type="button" data-pt-ms="0" class="${t.ms ? '' : 'on'}">Tâche</button><button type="button" data-pt-ms="1" class="${t.ms ? 'on' : ''}">Jalon</button></div>
-    <div class="pgrid">${fld('Début souhaité', `<input type="date" data-pt="s" value="${t.s}">`)}${t.ms ? '' : fld('Durée (j ouvrés)', `<input type="number" min="1" step="1" data-pt="d" value="${t.d}">`)}${t.ms ? '' : fld('Fin', `<input type="date" data-pt="end" value="${dayToIso(r.de)}">`)}</div>
+    <div class="pgrid">${fld('Début souhaité', `<input type="date" data-pt="s" value="${t.s}">`)}${t.ms ? '' : fld('Durée', (D => `<div class="pdur"><input type="number" min="0.01" step="any" data-pt="d" value="${D.v}" aria-label="Durée"><select data-pt="du" aria-label="Unité de durée">${Object.entries({j:'jour(s)', s:'semaine(s)', m:'mois', a:'an(s)'}).map(([k, l]) => `<option value="${k}"${k === D.u ? ' selected' : ''}>${l}</option>`).join('')}</select></div><small class="pdur-n">= ${r.dur} j ouvrés</small>`)(durSplit(t.d, t.du)))}${t.ms ? '' : fld('Fin', `<input type="date" data-pt="end" value="${dayToIso(r.de)}">`)}</div>
     ${r.ds !== isoToDay(t.s) ? `<p class="pnote warn">Calculé : début le ${fmtDL(r.ds)}${t.deps.length || ancestors(t).some(a => a.deps.length) ? ' (repoussé par ses liens)' : ' (jour non travaillé)'}.</p>` : ''}
     ${fld(`Avancement · <b>${t.p} %</b>`, `<input type="range" min="0" max="100" step="5" data-pt="p" value="${t.p}">`)}`}
     <div class="pf"><span>Couleur</span>${swatches(t.col, 'data-ptc')}</div>
@@ -49,7 +49,7 @@ function taskPanel(){
 }
 function projStats(){
   const leaves = state.els.filter(t => !C[t.id].sum), ms = leaves.filter(t => t.ms).length, crit = leaves.filter(t => C[t.id].crit && !t.ms).length, late = leaves.filter(behind).length;
-  return `<div class="pinfo big"><div><span>Début</span><b>${fmtD(PROJ.start)}</b></div><div><span>Fin</span><b>${fmtD(PROJ.end)}</b></div><div><span>Durée</span><b>${Math.max(0, PROJ.ef - PROJ.es + 1)} j ouvrés</b></div><div><span>Avancement</span><b>${PROJ.p} %</b></div>
+  return `<div class="pinfo big"><div><span>Début</span><b>${fmtD(PROJ.start)}</b></div><div><span>Fin</span><b>${fmtD(PROJ.end)}</b></div><div><span>Durée</span><b>${fmtDur(Math.max(0, PROJ.ef - PROJ.es + 1))}</b></div><div><span>Avancement</span><b>${PROJ.p} %</b></div>
     <div><span>Tâches</span><b>${leaves.length - ms}</b></div><div><span>Jalons</span><b>${ms}</b></div><div><span>Critiques</span><b>${crit}</b></div><div><span>En retard</span><b class="${late ? 'neg' : ''}">${late}</b></div>${PROJ.cost ? `<div class="w2"><span>Coût estimé (ressources)</span><b>${eur(PROJ.cost)}</b></div>` : ''}${state.base ? `<div class="w2"><span>Écart sur la référence</span><b class="${PROJ.late ? 'neg' : ''}">${PROJ.late ? '+' + PROJ.late + ' j ouvrés' : 'Aucun retard'}</b></div>` : ''}</div>
     <div class="pbar"><i style="width:${PROJ.p}%"></i></div>`;
 }
@@ -97,7 +97,7 @@ function bindPanel(){
     if (x.dataset.pl && selLink){ edit(() => { const L = byId(selLink.to).deps.find(q => q.id === selLink.from); if (x.dataset.pl === 't') L.t = v; else L.lag = Math.round(num(v)) || 0; }); return; }
     if (x.dataset.pt && t){ const k = x.dataset.pt; edit(() => {
       if (k === 'name') t.name = v.trim() || t.name; else if (k === 's'){ if (Number.isFinite(isoToDay(v))) t.s = v; }
-      else if (k === 'd'){ const n = Math.round(num(v)); if (n >= 1) t.d = n; } else if (k === 'end'){ const d = isoToDay(v); if (Number.isFinite(d)) t.d = Math.max(1, CAL.count(C[t.id].ds, d)); }
+      else if (k === 'd' || k === 'du'){ const bx = x.closest('.pdur'), u = bx.querySelector('select').value, n = Math.round(num(bx.querySelector('input').value) * durBase()[u]); if (n >= 1){ t.d = n; t.du = u; } } else if (k === 'end'){ const d = isoToDay(v); if (Number.isFinite(d)) t.d = Math.max(1, CAL.count(C[t.id].ds, d)); }
       else if (k === 'p') t.p = clamp(+v, 0, 100); else if (k === 'prio') t.prio = v; else if (k === 'note') t.note = v; }); return; }
     if (x.dataset.pm === 'p'){ edit(() => ids.forEach(id => { if (!C[id].sum) byId(id).p = +v; })); return; }
     if (x.dataset.dep != null && t){ const L = t.deps[+x.dataset.dep], k = x.dataset.k; const old = {...L}; edit(() => { if (k === 'lag') L.lag = Math.round(num(v)) || 0; else L[k] = v; schedule(); if (CYCLE){ Object.assign(L, old); throw new Error('ce lien créerait une boucle'); } }); return; }

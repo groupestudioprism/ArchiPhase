@@ -7,6 +7,7 @@ Une app du pôle **Prism App** de Studio Prism, dans la gamme **Archi** (ARCHIPL
 
 ## Fonctions
 - **Gantt** : tâches, sous-tâches (phases), jalons ; glisser une barre pour la déplacer, son bord droit pour la durée, le triangle pour l'avancement, le rond pour lier à une autre tâche.
+- **Durées** en jours, semaines, mois ou années (stockées en jours ouvrés : 1 sem. = jours travaillés de la semaine, 1 mois ≈ 22 j, 1 an = 52 sem.) ; saisie libre dans le tableau (« 3 sem », « 2 mois »).
 - **Liens** FD / DD / FF / DF avec décalage (positif ou négatif) ; les liens poussent les tâches suivantes ; boucles détectées.
 - **Calendrier** : jours travaillés de la semaine, jours fériés français calculés automatiquement (Pâques, Ascension, Pentecôte…), fermetures et congés, jours travaillés exceptionnels.
 - **Chemin critique** et marges totales, **planning de référence** et écarts, tâches en retard sur l'avancement attendu.

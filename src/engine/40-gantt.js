@@ -66,7 +66,7 @@ function renderGantt(){
     const cells = {wbs:`<div class="c-wbs">${W1[t.id]}</div>`,
       name:`<div class="c-name" style="padding-left:${6 + lv * 16}px">${isS ? `<button class="car${t.c ? ' shut' : ''}" data-car="${t.id}" aria-label="${t.c ? 'Déplier' : 'Replier'}"><svg viewBox="0 0 12 12"><path d="M3 4.5l3 3 3-3"/></svg></button>` : `<i class="dot${t.ms ? ' ms' : ''}" style="--c:${colOf(t)[1]}"></i>`}<span class="nm${isS ? ' sum' : ''}">${esc(t.name)}</span>${late ? '<b class="late" title="En retard sur l\'avancement attendu">!</b>' : ''}</div>`,
       start:`<div class="c-start">${fmtD(r.ds)}</div>`, end:`<div class="c-end">${fmtD(r.de)}</div>`,
-      dur:`<div class="c-dur">${t.ms ? '<span class="msl">jalon</span>' : r.dur + ' j'}</div>`, p:`<div class="c-p">${r.p}%</div>`};
+      dur:`<div class="c-dur">${t.ms ? '<span class="msl">jalon</span>' : fmtDur(r.dur, t.du)}</div>`, p:`<div class="c-p">${r.p}%</div>`};
     tb += `<div class="grow${s ? ' sel' : ''}${isS ? ' sum' : ''}" data-id="${t.id}" style="top:${y}px;height:${rh}px;grid-template-columns:${gt}">${c.map(x => cells[x[0]]).join('')}</div>`;
     // barre
     const x0 = X(r.ds), x1 = X(r.de + 1), cy = y + rh / 2, base = state.view.base && state.base?.t?.[t.id];
@@ -77,7 +77,7 @@ function renderGantt(){
       const res = t.res.map(a => state.res.find(q => q.id === a.id)?.name + (a.u !== 100 ? ` ${a.u}%` : '')).filter(Boolean).join(', ');
       const [, c1, c2] = colOf(t);
       bars += `<div class="bar${s ? ' sel' : ''}${r.crit && state.view.crit ? ' crit' : ''}${late ? ' late' : ''}" data-bar="${t.id}" style="left:${x0}px;width:${Math.max(4, x1 - x0)}px;top:${cy - 10}px;--c1:${c1};--c2:${c2}"><b style="width:${t.p}%"></b><i class="h-end" data-h="end" title="Durée"></i><i class="h-p" data-h="p" style="left:${t.p}%" title="Avancement"></i><i class="h-link" data-h="link" title="Tirer vers une autre tâche pour la lier"></i></div>`
-        + `<div class="blab" style="left:${x1 + 8}px;top:${cy - 9}px">${esc(t.name)} <small>${res ? esc(res) : r.dur + ' j'}</small></div>`;
+        + `<div class="blab" style="left:${x1 + 8}px;top:${cy - 9}px">${esc(t.name)} <small>${res ? esc(res) : fmtDur(r.dur, t.du)}</small></div>`;
     }
   });
   // liens
@@ -190,19 +190,19 @@ function hoverTip(e){
   if (!b){ tip(null); return; }
   tipT = setTimeout(() => { const t = byId(b.dataset.bar), r = C[t.id]; if (!t) return;
     const res = t.res.map(a => (state.res.find(q => q.id === a.id)?.name || '') + (a.u !== 100 ? ` (${a.u} %)` : '')).join(', ');
-    tip(`<b>${esc(t.name)}</b><span>${t.ms ? 'Jalon · ' + fmtDL(r.ds) : `${fmtD(r.ds)} → ${fmtD(r.de)} · ${r.dur} j ouvrés`}</span><span>Avancement ${r.p} %${r.sum ? '' : ` · marge ${Math.max(0, r.slack)} j`}${r.crit ? ' · <em>critique</em>' : ''}</span>${res ? `<span>${esc(res)}</span>` : ''}${r.cost ? `<span>Coût ${eur(r.cost)}</span>` : ''}${state.view.base && r.late ? `<span class="tl">Retard sur la référence : ${r.late} j</span>` : ''}`, e); }, 280);
+    tip(`<b>${esc(t.name)}</b><span>${t.ms ? 'Jalon · ' + fmtDL(r.ds) : `${fmtD(r.ds)} → ${fmtD(r.de)} · ${fmtDur(r.dur, t.du)}${r.dur > 1 ? ' (' + r.dur + ' j ouvrés)' : ''}`}</span><span>Avancement ${r.p} %${r.sum ? '' : ` · marge ${Math.max(0, r.slack)} j`}${r.crit ? ' · <em>critique</em>' : ''}</span>${res ? `<span>${esc(res)}</span>` : ''}${r.cost ? `<span>Coût ${eur(r.cost)}</span>` : ''}${state.view.base && r.late ? `<span class="tl">Retard sur la référence : ${r.late} j</span>` : ''}`, e); }, 280);
 }
 /* édition directe dans le tableau (double-clic, F2) */
 function inlineEdit(id, field, cell){
   const t = byId(id), r = C[id]; if (!t || !cell || state.view.ro) return;
   if (r.sum && field !== 'name') { toast('Dates, durée et avancement d\'une tâche récapitulative se calculent à partir de ses sous-tâches.'); return; }
-  const v = {name:t.name, dur:t.ms ? 0 : t.d, start:dayToIso(r.ds), end:dayToIso(r.de), p:t.p}[field];
-  const type = field === 'start' || field === 'end' ? 'date' : field === 'name' ? 'text' : 'number';
+  const v = {name:t.name, dur:t.ms ? 0 : fmtDur(t.d, t.du), start:dayToIso(r.ds), end:dayToIso(r.de), p:t.p}[field];
+  const type = field === 'start' || field === 'end' ? 'date' : field === 'name' || field === 'dur' ? 'text' : 'number';
   const box = cell.getBoundingClientRect(), inp = document.createElement('input');
   inp.type = type; inp.value = v; inp.className = 'gedit'; Object.assign(inp.style, {left:box.left + 'px', top:box.top + 'px', width:Math.max(box.width, type === 'date' ? 130 : 60) + 'px', height:box.height + 'px'});
   document.body.appendChild(inp); inp.focus(); inp.select?.();
   let done = false; const commit = ok => { if (done) return; done = true; const val = inp.value; inp.remove(); if (!ok || String(val) === String(v)) return;
-    edit(() => { if (field === 'name') t.name = val.trim() || t.name; else if (field === 'dur'){ const n = Math.max(0, Math.round(num(val))); if (!Number.isFinite(n)) return; t.d = n; t.ms = n === 0; }
+    edit(() => { if (field === 'name') t.name = val.trim() || t.name; else if (field === 'dur'){ const n = parseDur(val, durSplit(t.d, t.du).u); if (!Number.isFinite(n)) { toast('Durée illisible : essayez « 5 j », « 3 sem », « 2 mois » ou « 1 an »'); return; } t.d = Math.max(0, n); t.ms = n === 0; t.du = durUnitOf(val) || t.du;}
       else if (field === 'start'){ const d = isoToDay(val); if (Number.isFinite(d)) t.s = dayToIso(d); }
       else if (field === 'end'){ const d = isoToDay(val); if (Number.isFinite(d)){ t.d = Math.max(1, CAL.count(r.ds, d)); t.ms = false; } }
       else if (field === 'p') t.p = clamp(Math.round(num(val)) || 0, 0, 100); }); };

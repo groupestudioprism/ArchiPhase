@@ -1172,6 +1172,12 @@ a.ap-link{text-decoration:none}
 @media (pointer:coarse){ .h-end{width:14px;right:-7px} .h-p{border-width:8px;bottom:-12px;margin-left:-8px} .bar{height:24px} .bar .bin{line-height:24px} }
 #pbody .ph{display:block}
 .pu input{width:58px!important;flex:none}
+
+/* durée d'une tâche : valeur + unité (j, semaines, mois, ans) */
+.pdur{display:flex;gap:6px}
+.pdur input{flex:1 1 0;min-width:0}
+.pdur select{flex:0 0 auto;width:auto;min-width:96px}
+.pdur-n{font-weight:500;color:var(--mut);font-size:11px;margin-top:-1px}
 </style>
 <div id="splash" role="status" aria-live="polite">
   <div class="sp-stage" role="img" aria-label="ARCHIPHASE, planification et phasage de projets">
@@ -3265,6 +3271,30 @@ const $$ = s => [...document.querySelectorAll(s)];
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const clamp = (x, a, b) => Math.max(a, Math.min(b, x));
 const num = s => { const v = parseFloat(String(s ?? '').trim().replace(/\s/g, '').replace(',', '.')); return Number.isFinite(v) ? v : NaN; };
+/* ---- Durées : stockées en jours ouvrés (t.d), affichées et saisies en j / sem. / mois / ans ----
+   1 semaine = nombre de jours travaillés par semaine du calendrier (5 par défaut) ; 1 mois = semaine × 52 / 12 (22 j) ; 1 an = semaine × 52 (260 j). */
+const DUR_U = {j:'jour(s)', s:'semaine(s)', m:'mois', a:'an(s)'};
+function durBase(){ const wk = Math.max(1, ((typeof state !== 'undefined' && state?.cal?.week) || [0, 1, 1, 1, 1, 1, 0]).filter(Boolean).length); return {j:1, s:wk, m:Math.max(wk, Math.round(wk * 52 / 12)), a:wk * 52}; }
+/* {v, u} : valeur et unité d'affichage ; pref = unité choisie par l'utilisateur pour cette tâche (gardée si la valeur reste ≥ 1) */
+function durSplit(n, pref){
+  const B = durBase(); n = Math.max(0, Math.round(n || 0));
+  if (pref && B[pref] && pref !== 'j'){ const v = Math.round(n / B[pref] * 100) / 100; if (v >= 1 && Math.round(v * B[pref]) === n) return {v, u:pref}; }
+  if (pref === 'j') return {v:n, u:'j'};
+  for (const u of ['a', 'm', 's']) if (n >= B[u] && n % B[u] === 0) return {v:n / B[u], u};
+  return {v:n, u:'j'};
+}
+const fmtDur = (n, pref) => { const {v, u} = durSplit(n, pref); return nf(v, v % 1 ? 1 : 0) + ' ' + (u === 'j' ? 'j' : u === 's' ? 'sem.' : u === 'm' ? 'mois' : v > 1 ? 'ans' : 'an'); };
+/* unité écrite dans un texte (« 3 sem » → 's'), '' si aucune, null si inconnue */
+function durUnitOf(txt){
+  const m = String(txt ?? '').trim().toLowerCase().match(/^[\d.,\s]+([a-zéèû.]*)$/); if (!m) return null;
+  const w = m[1].replace(/\./g, ''); if (!w) return '';
+  return /^(j|jr|jrs|jour|jours)$/.test(w) ? 'j' : /^(s|sem|semaine|semaines)$/.test(w) ? 's' : /^(m|mo|mois)$/.test(w) ? 'm' : /^(a|an|ans|annee|année|annees|années)$/.test(w) ? 'a' : null;
+}
+/* « 3 sem », « 2 mois », « 1,5 an », « 10 » (unité par défaut : defU) → jours ouvrés (NaN si illisible) */
+function parseDur(txt, defU = 'j'){
+  const m = String(txt ?? '').trim().replace(',', '.').match(/^(\d+(?:\.\d+)?)/), u = durUnitOf(txt);
+  return m && u !== null ? Math.round(parseFloat(m[1]) * durBase()[u || defU]) : NaN;
+}
 const nf = (x, d = 0) => Number(x || 0).toLocaleString('fr-FR', {minimumFractionDigits:d, maximumFractionDigits:d});
 const eur = x => Number(x || 0).toLocaleString('fr-FR', {style:'currency', currency:'EUR', maximumFractionDigits:0});
 const uid = () => 't' + Math.random().toString(36).slice(2, 7) + Date.now().toString(36).slice(-3);
@@ -3354,7 +3384,7 @@ const CAL = {
 /* ==== 30-model.js ==== */
 /* ============ Modèle : projet, tâches, ressources, historique ============
    state.els   : tâches dans l'ordre d'affichage (parcours en profondeur de l'arborescence) — nom « els » commun au cloud des apps Archi
-     {id, name, s (début souhaité, AAAA-MM-JJ), d (durée en jours ouvrés, 0 = jalon), ms (jalon), p (avancement %), par (tâche parente),
+     {id, name, s (début souhaité, AAAA-MM-JJ), d (durée en jours ouvrés, 0 = jalon), du (unité d'affichage : j, s, m, a), ms (jalon), p (avancement %), par (tâche parente),
       deps:[{id, t:'FS'|'SS'|'FF'|'SF', lag}], res:[{id, u (%)}], col, prio, note, c (replié)}
    state.res   : ressources {id, name, role, col, rate (€/jour), cap (%)}
    state.cal   : {week:[dim…sam], hol (fériés français), off:[{from, to, name}], on:[AAAA-MM-JJ]}
@@ -3376,7 +3406,7 @@ function migrate(s){
   const st = {...b, ...(s || {}), cal:{...b.cal, ...(s?.cal || {})}, meta:{...b.meta, ...(s?.meta || {})}, view:{...b.view, ...(s?.view || {})}};
   st.els = (Array.isArray(st.els) ? st.els : []).filter(t => t && t.id).map(t => ({id:String(t.id), name:String(t.name ?? 'Tâche'), s:t.s || st.start, d:Math.max(0, Math.round(+t.d || 0)), ms:!!t.ms || +t.d === 0,
     p:clamp(Math.round(+t.p || 0), 0, 100), par:t.par ? String(t.par) : '', deps:(t.deps || []).filter(x => x && x.id).map(x => ({id:String(x.id), t:LINKS[x.t] ? x.t : 'FS', lag:Math.round(+x.lag || 0)})),
-    res:(t.res || []).filter(x => x && x.id).map(x => ({id:String(x.id), u:clamp(Math.round(+x.u || 100), 1, 1000)})), col:COLOR[t.col] ? t.col : '', prio:PRIOS[t.prio] ? t.prio : 'normal', note:String(t.note || ''), c:!!t.c}));
+    res:(t.res || []).filter(x => x && x.id).map(x => ({id:String(x.id), u:clamp(Math.round(+x.u || 100), 1, 1000)})), col:COLOR[t.col] ? t.col : '', prio:PRIOS[t.prio] ? t.prio : 'normal', note:String(t.note || ''), c:!!t.c, du:['j', 's', 'm', 'a'].includes(t.du) ? t.du : ''}));
   const ids = new Set(st.els.map(t => t.id));
   st.els.forEach(t => { if (!ids.has(t.par) || t.par === t.id) t.par = ''; t.deps = t.deps.filter(x => ids.has(x.id) && x.id !== t.id); if (t.ms) t.d = 0; });
   st.res = (Array.isArray(st.res) ? st.res : []).filter(r => r && r.id).map(r => ({id:String(r.id), name:String(r.name || 'Ressource'), role:String(r.role || ''), col:COLOR[r.col] ? r.col : 'bleu', rate:Math.max(0, +r.rate || 0), cap:clamp(+r.cap || 100, 1, 10000)}));
@@ -3649,7 +3679,7 @@ function renderGantt(){
     const cells = {wbs:`<div class="c-wbs">${W1[t.id]}</div>`,
       name:`<div class="c-name" style="padding-left:${6 + lv * 16}px">${isS ? `<button class="car${t.c ? ' shut' : ''}" data-car="${t.id}" aria-label="${t.c ? 'Déplier' : 'Replier'}"><svg viewBox="0 0 12 12"><path d="M3 4.5l3 3 3-3"/></svg></button>` : `<i class="dot${t.ms ? ' ms' : ''}" style="--c:${colOf(t)[1]}"></i>`}<span class="nm${isS ? ' sum' : ''}">${esc(t.name)}</span>${late ? '<b class="late" title="En retard sur l\'avancement attendu">!</b>' : ''}</div>`,
       start:`<div class="c-start">${fmtD(r.ds)}</div>`, end:`<div class="c-end">${fmtD(r.de)}</div>`,
-      dur:`<div class="c-dur">${t.ms ? '<span class="msl">jalon</span>' : r.dur + ' j'}</div>`, p:`<div class="c-p">${r.p}%</div>`};
+      dur:`<div class="c-dur">${t.ms ? '<span class="msl">jalon</span>' : fmtDur(r.dur, t.du)}</div>`, p:`<div class="c-p">${r.p}%</div>`};
     tb += `<div class="grow${s ? ' sel' : ''}${isS ? ' sum' : ''}" data-id="${t.id}" style="top:${y}px;height:${rh}px;grid-template-columns:${gt}">${c.map(x => cells[x[0]]).join('')}</div>`;
     // barre
     const x0 = X(r.ds), x1 = X(r.de + 1), cy = y + rh / 2, base = state.view.base && state.base?.t?.[t.id];
@@ -3660,7 +3690,7 @@ function renderGantt(){
       const res = t.res.map(a => state.res.find(q => q.id === a.id)?.name + (a.u !== 100 ? ` ${a.u}%` : '')).filter(Boolean).join(', ');
       const [, c1, c2] = colOf(t);
       bars += `<div class="bar${s ? ' sel' : ''}${r.crit && state.view.crit ? ' crit' : ''}${late ? ' late' : ''}" data-bar="${t.id}" style="left:${x0}px;width:${Math.max(4, x1 - x0)}px;top:${cy - 10}px;--c1:${c1};--c2:${c2}"><b style="width:${t.p}%"></b><i class="h-end" data-h="end" title="Durée"></i><i class="h-p" data-h="p" style="left:${t.p}%" title="Avancement"></i><i class="h-link" data-h="link" title="Tirer vers une autre tâche pour la lier"></i></div>`
-        + `<div class="blab" style="left:${x1 + 8}px;top:${cy - 9}px">${esc(t.name)} <small>${res ? esc(res) : r.dur + ' j'}</small></div>`;
+        + `<div class="blab" style="left:${x1 + 8}px;top:${cy - 9}px">${esc(t.name)} <small>${res ? esc(res) : fmtDur(r.dur, t.du)}</small></div>`;
     }
   });
   // liens
@@ -3773,19 +3803,19 @@ function hoverTip(e){
   if (!b){ tip(null); return; }
   tipT = setTimeout(() => { const t = byId(b.dataset.bar), r = C[t.id]; if (!t) return;
     const res = t.res.map(a => (state.res.find(q => q.id === a.id)?.name || '') + (a.u !== 100 ? ` (${a.u} %)` : '')).join(', ');
-    tip(`<b>${esc(t.name)}</b><span>${t.ms ? 'Jalon · ' + fmtDL(r.ds) : `${fmtD(r.ds)} → ${fmtD(r.de)} · ${r.dur} j ouvrés`}</span><span>Avancement ${r.p} %${r.sum ? '' : ` · marge ${Math.max(0, r.slack)} j`}${r.crit ? ' · <em>critique</em>' : ''}</span>${res ? `<span>${esc(res)}</span>` : ''}${r.cost ? `<span>Coût ${eur(r.cost)}</span>` : ''}${state.view.base && r.late ? `<span class="tl">Retard sur la référence : ${r.late} j</span>` : ''}`, e); }, 280);
+    tip(`<b>${esc(t.name)}</b><span>${t.ms ? 'Jalon · ' + fmtDL(r.ds) : `${fmtD(r.ds)} → ${fmtD(r.de)} · ${fmtDur(r.dur, t.du)}${r.dur > 1 ? ' (' + r.dur + ' j ouvrés)' : ''}`}</span><span>Avancement ${r.p} %${r.sum ? '' : ` · marge ${Math.max(0, r.slack)} j`}${r.crit ? ' · <em>critique</em>' : ''}</span>${res ? `<span>${esc(res)}</span>` : ''}${r.cost ? `<span>Coût ${eur(r.cost)}</span>` : ''}${state.view.base && r.late ? `<span class="tl">Retard sur la référence : ${r.late} j</span>` : ''}`, e); }, 280);
 }
 /* édition directe dans le tableau (double-clic, F2) */
 function inlineEdit(id, field, cell){
   const t = byId(id), r = C[id]; if (!t || !cell || state.view.ro) return;
   if (r.sum && field !== 'name') { toast('Dates, durée et avancement d\'une tâche récapitulative se calculent à partir de ses sous-tâches.'); return; }
-  const v = {name:t.name, dur:t.ms ? 0 : t.d, start:dayToIso(r.ds), end:dayToIso(r.de), p:t.p}[field];
-  const type = field === 'start' || field === 'end' ? 'date' : field === 'name' ? 'text' : 'number';
+  const v = {name:t.name, dur:t.ms ? 0 : fmtDur(t.d, t.du), start:dayToIso(r.ds), end:dayToIso(r.de), p:t.p}[field];
+  const type = field === 'start' || field === 'end' ? 'date' : field === 'name' || field === 'dur' ? 'text' : 'number';
   const box = cell.getBoundingClientRect(), inp = document.createElement('input');
   inp.type = type; inp.value = v; inp.className = 'gedit'; Object.assign(inp.style, {left:box.left + 'px', top:box.top + 'px', width:Math.max(box.width, type === 'date' ? 130 : 60) + 'px', height:box.height + 'px'});
   document.body.appendChild(inp); inp.focus(); inp.select?.();
   let done = false; const commit = ok => { if (done) return; done = true; const val = inp.value; inp.remove(); if (!ok || String(val) === String(v)) return;
-    edit(() => { if (field === 'name') t.name = val.trim() || t.name; else if (field === 'dur'){ const n = Math.max(0, Math.round(num(val))); if (!Number.isFinite(n)) return; t.d = n; t.ms = n === 0; }
+    edit(() => { if (field === 'name') t.name = val.trim() || t.name; else if (field === 'dur'){ const n = parseDur(val, durSplit(t.d, t.du).u); if (!Number.isFinite(n)) { toast('Durée illisible : essayez « 5 j », « 3 sem », « 2 mois » ou « 1 an »'); return; } t.d = Math.max(0, n); t.ms = n === 0; t.du = durUnitOf(val) || t.du;}
       else if (field === 'start'){ const d = isoToDay(val); if (Number.isFinite(d)) t.s = dayToIso(d); }
       else if (field === 'end'){ const d = isoToDay(val); if (Number.isFinite(d)){ t.d = Math.max(1, CAL.count(r.ds, d)); t.ms = false; } }
       else if (field === 'p') t.p = clamp(Math.round(num(val)) || 0, 0, 100); }); };
@@ -3849,7 +3879,7 @@ function renderPert(){
     const ls = CAL.toD(r.lf - Math.max(0, r.dur) + 1), lf = CAL.toD(Math.max(r.lf, r.es));
     boxes += `<g class="pn${crit ? ' crit' : ''}${s ? ' sel' : ''}" data-id="${t.id}" transform="translate(${x} ${y})"><rect width="${BW}" height="${BH}" rx="10"/><rect class="pc" width="6" height="${BH}" rx="3" style="fill:${c}"/>
       <text x="16" y="21" class="pt">${esc(t.name.length > 28 ? t.name.slice(0, 27) + '…' : t.name)}</text>
-      <text x="16" y="41" class="ps">${t.ms ? 'Jalon' : r.dur + ' j'} · ${r.p} %${crit ? ' · critique' : ` · marge ${Math.max(0, r.slack)} j`}</text>
+      <text x="16" y="41" class="ps">${t.ms ? 'Jalon' : fmtDur(r.dur, t.du)} · ${r.p} %${crit ? ' · critique' : ` · marge ${Math.max(0, r.slack)} j`}</text>
       <line x1="10" x2="${BW - 10}" y1="52" y2="52"/><text x="16" y="68" class="pd">Tôt ${fmtD(r.ds)} → ${fmtD(r.de)}</text><text x="16" y="81" class="pd mut">Tard ${fmtD(ls)} → ${fmtD(lf)}</text>
       ${t.ms ? `<path class="pmk" d="M${BW - 22} 12l8 8-8 8-8-8z" style="fill:${c}"/>` : ''}</g>`; });
   host.innerHTML = `<div class="pw"><div class="pin" style="width:${W * pertZoom}px;height:${H * pertZoom}px"><svg width="${W * pertZoom}" height="${H * pertZoom}" viewBox="0 0 ${W} ${H}"><defs>${['paL', 'paC'].map(k => `<marker id="${k}" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto"><path d="M1 1L9 5L1 9z"/></marker>`).join('')}</defs>${links}${boxes}</svg></div>
@@ -3895,9 +3925,9 @@ function taskPanel(){
   const opts = (cur, excl) => state.els.filter(x => !excl.has(x.id)).map(x => `<option value="${x.id}"${x.id === cur ? ' selected' : ''}>${W1[x.id]} · ${esc(x.name)}</option>`).join('');
   const excl = new Set(subtree(t).map(x => x.id).concat(ancestors(t).map(x => x.id)));
   return `<div class="ph"><small>${W1[t.id]} · ${S ? 'Tâche récapitulative' : t.ms ? 'Jalon' : 'Tâche'}</small><input id="tpName" class="ph-in" data-pt="name" value="${esc(t.name)}" aria-label="Nom de la tâche"></div>
-    ${S ? `<div class="pinfo"><div><span>Début</span><b>${fmtD(r.ds)}</b></div><div><span>Fin</span><b>${fmtD(r.de)}</b></div><div><span>Durée</span><b>${r.dur} j</b></div><div><span>Avancement</span><b>${r.p} %</b></div></div><p class="pnote">Dates et avancement calculés à partir des ${kids(t.id).length} sous-tâches.</p>` : `
+    ${S ? `<div class="pinfo"><div><span>Début</span><b>${fmtD(r.ds)}</b></div><div><span>Fin</span><b>${fmtD(r.de)}</b></div><div><span>Durée</span><b>${fmtDur(r.dur)}</b></div><div><span>Avancement</span><b>${r.p} %</b></div></div><p class="pnote">Dates et avancement calculés à partir des ${kids(t.id).length} sous-tâches.</p>` : `
     <div class="pseg"><button type="button" data-pt-ms="0" class="${t.ms ? '' : 'on'}">Tâche</button><button type="button" data-pt-ms="1" class="${t.ms ? 'on' : ''}">Jalon</button></div>
-    <div class="pgrid">${fld('Début souhaité', `<input type="date" data-pt="s" value="${t.s}">`)}${t.ms ? '' : fld('Durée (j ouvrés)', `<input type="number" min="1" step="1" data-pt="d" value="${t.d}">`)}${t.ms ? '' : fld('Fin', `<input type="date" data-pt="end" value="${dayToIso(r.de)}">`)}</div>
+    <div class="pgrid">${fld('Début souhaité', `<input type="date" data-pt="s" value="${t.s}">`)}${t.ms ? '' : fld('Durée', (D => `<div class="pdur"><input type="number" min="0.01" step="any" data-pt="d" value="${D.v}" aria-label="Durée"><select data-pt="du" aria-label="Unité de durée">${Object.entries({j:'jour(s)', s:'semaine(s)', m:'mois', a:'an(s)'}).map(([k, l]) => `<option value="${k}"${k === D.u ? ' selected' : ''}>${l}</option>`).join('')}</select></div><small class="pdur-n">= ${r.dur} j ouvrés</small>`)(durSplit(t.d, t.du)))}${t.ms ? '' : fld('Fin', `<input type="date" data-pt="end" value="${dayToIso(r.de)}">`)}</div>
     ${r.ds !== isoToDay(t.s) ? `<p class="pnote warn">Calculé : début le ${fmtDL(r.ds)}${t.deps.length || ancestors(t).some(a => a.deps.length) ? ' (repoussé par ses liens)' : ' (jour non travaillé)'}.</p>` : ''}
     ${fld(`Avancement · <b>${t.p} %</b>`, `<input type="range" min="0" max="100" step="5" data-pt="p" value="${t.p}">`)}`}
     <div class="pf"><span>Couleur</span>${swatches(t.col, 'data-ptc')}</div>
@@ -3915,7 +3945,7 @@ function taskPanel(){
 }
 function projStats(){
   const leaves = state.els.filter(t => !C[t.id].sum), ms = leaves.filter(t => t.ms).length, crit = leaves.filter(t => C[t.id].crit && !t.ms).length, late = leaves.filter(behind).length;
-  return `<div class="pinfo big"><div><span>Début</span><b>${fmtD(PROJ.start)}</b></div><div><span>Fin</span><b>${fmtD(PROJ.end)}</b></div><div><span>Durée</span><b>${Math.max(0, PROJ.ef - PROJ.es + 1)} j ouvrés</b></div><div><span>Avancement</span><b>${PROJ.p} %</b></div>
+  return `<div class="pinfo big"><div><span>Début</span><b>${fmtD(PROJ.start)}</b></div><div><span>Fin</span><b>${fmtD(PROJ.end)}</b></div><div><span>Durée</span><b>${fmtDur(Math.max(0, PROJ.ef - PROJ.es + 1))}</b></div><div><span>Avancement</span><b>${PROJ.p} %</b></div>
     <div><span>Tâches</span><b>${leaves.length - ms}</b></div><div><span>Jalons</span><b>${ms}</b></div><div><span>Critiques</span><b>${crit}</b></div><div><span>En retard</span><b class="${late ? 'neg' : ''}">${late}</b></div>${PROJ.cost ? `<div class="w2"><span>Coût estimé (ressources)</span><b>${eur(PROJ.cost)}</b></div>` : ''}${state.base ? `<div class="w2"><span>Écart sur la référence</span><b class="${PROJ.late ? 'neg' : ''}">${PROJ.late ? '+' + PROJ.late + ' j ouvrés' : 'Aucun retard'}</b></div>` : ''}</div>
     <div class="pbar"><i style="width:${PROJ.p}%"></i></div>`;
 }
@@ -3963,7 +3993,7 @@ function bindPanel(){
     if (x.dataset.pl && selLink){ edit(() => { const L = byId(selLink.to).deps.find(q => q.id === selLink.from); if (x.dataset.pl === 't') L.t = v; else L.lag = Math.round(num(v)) || 0; }); return; }
     if (x.dataset.pt && t){ const k = x.dataset.pt; edit(() => {
       if (k === 'name') t.name = v.trim() || t.name; else if (k === 's'){ if (Number.isFinite(isoToDay(v))) t.s = v; }
-      else if (k === 'd'){ const n = Math.round(num(v)); if (n >= 1) t.d = n; } else if (k === 'end'){ const d = isoToDay(v); if (Number.isFinite(d)) t.d = Math.max(1, CAL.count(C[t.id].ds, d)); }
+      else if (k === 'd' || k === 'du'){ const bx = x.closest('.pdur'), u = bx.querySelector('select').value, n = Math.round(num(bx.querySelector('input').value) * durBase()[u]); if (n >= 1){ t.d = n; t.du = u; } } else if (k === 'end'){ const d = isoToDay(v); if (Number.isFinite(d)) t.d = Math.max(1, CAL.count(C[t.id].ds, d)); }
       else if (k === 'p') t.p = clamp(+v, 0, 100); else if (k === 'prio') t.prio = v; else if (k === 'note') t.note = v; }); return; }
     if (x.dataset.pm === 'p'){ edit(() => ids.forEach(id => { if (!C[id].sum) byId(id).p = +v; })); return; }
     if (x.dataset.dep != null && t){ const L = t.deps[+x.dataset.dep], k = x.dataset.k; const old = {...L}; edit(() => { if (k === 'lag') L.lag = Math.round(num(v)) || 0; else L[k] = v; schedule(); if (CYCLE){ Object.assign(L, old); throw new Error('ce lien créerait une boucle'); } }); return; }
